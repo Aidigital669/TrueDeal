@@ -207,21 +207,36 @@ export async function getProducts(options: {
       console.warn("DB read notice (falling back to memory registry):", dbErr);
     }
 
-    // Combine MongoDB products and Local Imported Products strictly for this seller
-    const scopedLocalProducts = LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
-    const allProducts = [...scopedLocalProducts, ...dbProducts];
-    
-    // De-duplicate by ID
+    // De-duplicate products strictly by ID and normalized Title
     const productMap = new Map<string, any>();
-    allProducts.forEach(p => {
-      // Isolation filter: Do not show other sellers' brands
+    const seenTitles = new Set<string>();
+
+    // 1. Prioritize MongoDB database records
+    dbProducts.forEach(p => {
       if (isAnv) {
         const brandStr = (p.brand || "").toLowerCase();
-        const srcStr = (p.sourceUrl || "").toLowerCase();
         if (brandStr.includes("abc electronics") || brandStr.includes("tissuekart")) return;
       }
+      const titleKey = (p.title || p.name || "").trim().toLowerCase();
       const pId = p._id ? p._id.toString() : p.id;
+      if (titleKey) seenTitles.add(titleKey);
       if (pId && !productMap.has(pId)) {
+        productMap.set(pId, p);
+      }
+    });
+
+    // 2. Add local memory registry items only if not already present in database
+    const scopedLocalProducts = LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
+    scopedLocalProducts.forEach(p => {
+      if (isAnv) {
+        const brandStr = (p.brand || "").toLowerCase();
+        if (brandStr.includes("abc electronics") || brandStr.includes("tissuekart")) return;
+      }
+      const titleKey = (p.title || p.name || "").trim().toLowerCase();
+      const pId = p._id ? p._id.toString() : p.id;
+      if (titleKey && seenTitles.has(titleKey)) return; // Prevent duplicate
+      if (pId && !productMap.has(pId)) {
+        if (titleKey) seenTitles.add(titleKey);
         productMap.set(pId, p);
       }
     });
@@ -598,12 +613,14 @@ export async function importScrapedProductAction(productData: {
       updatedAt: new Date()
     };
 
-    // 1. Save to Scoped Local Memory Registry
-    const currentList = LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
+    // 1. Save to Scoped Local Memory Registry (de-duplicate by title)
+    const currentList = (LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || []).filter(
+      p => (p.title || p.name || "").trim().toLowerCase() !== doc.title.trim().toLowerCase()
+    );
     currentList.unshift(doc);
     LOCAL_IMPORTED_PRODUCTS_MAP.set(sellerKey, currentList);
 
-    // 2. Persist to MongoDB Atlas
+    // 2. Persist to MongoDB Atlas with Upsert
     try {
       const client = await clientPromise;
       if (client) {
@@ -619,12 +636,19 @@ export async function importScrapedProductAction(productData: {
         }
 
         const mongoDoc = {
-          _id: new ObjectId(),
           ...doc,
           ...(sellerIdObj ? { sellerId: sellerIdObj } : {})
         };
-        await db.collection("products").insertOne(mongoDoc);
-        console.log(`Successfully persisted product "${productData.title}" for seller "${sellerSlug}" to MongoDB!`);
+
+        await db.collection("products").updateOne(
+          { title: doc.title, sellerSlug },
+          { 
+            $set: mongoDoc,
+            $setOnInsert: { _id: new ObjectId(), createdAt: new Date() }
+          },
+          { upsert: true }
+        );
+        console.log(`Successfully upserted product "${productData.title}" for seller "${sellerSlug}" in MongoDB!`);
       }
     } catch (dbErr: any) {
       console.error("MongoDB Atlas persist notice:", dbErr.message);
@@ -731,14 +755,17 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
       };
     });
 
-    // 1. Unshift into seller-scoped local memory
-    const currentList = LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
+    // 1. Unshift into seller-scoped local memory (de-duplicate by title)
+    const newTitles = new Set(docsToInsert.map(d => d.title.trim().toLowerCase()));
+    const existingFiltered = (LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || []).filter(
+      p => !newTitles.has((p.title || p.name || "").trim().toLowerCase())
+    );
     for (const doc of [...docsToInsert].reverse()) {
-      currentList.unshift(doc);
+      existingFiltered.unshift(doc);
     }
-    LOCAL_IMPORTED_PRODUCTS_MAP.set(sellerKey, currentList);
+    LOCAL_IMPORTED_PRODUCTS_MAP.set(sellerKey, existingFiltered);
 
-    // 2. Persist to MongoDB Atlas
+    // 2. Persist to MongoDB Atlas with Upserts
     try {
       const client = await clientPromise;
       if (client) {
@@ -753,13 +780,27 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
           }
         }
 
-        const mongoDocs = docsToInsert.map(doc => ({
-          _id: new ObjectId(),
-          ...doc,
-          ...(sellerIdObj ? { sellerId: sellerIdObj } : {})
-        }));
-        await db.collection("products").insertMany(mongoDocs);
-        console.log(`Successfully batch inserted ${mongoDocs.length} products for seller "${sellerSlug}" to MongoDB!`);
+        const bulkOps = docsToInsert.map(doc => {
+          const mongoDoc = {
+            ...doc,
+            ...(sellerIdObj ? { sellerId: sellerIdObj } : {})
+          };
+          return {
+            updateOne: {
+              filter: { title: doc.title, sellerSlug },
+              update: {
+                $set: mongoDoc,
+                $setOnInsert: { _id: new ObjectId(), createdAt: new Date() }
+              },
+              upsert: true
+            }
+          };
+        });
+
+        if (bulkOps.length > 0) {
+          await db.collection("products").bulkWrite(bulkOps, { ordered: false });
+          console.log(`Successfully batch upserted ${bulkOps.length} products for seller "${sellerSlug}" in MongoDB!`);
+        }
       }
     } catch (dbErr: any) {
       console.error("MongoDB Atlas batch persist notice:", dbErr.message);
