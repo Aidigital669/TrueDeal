@@ -143,7 +143,7 @@ export function HeroSection({ initialQuery = "" }: { initialQuery?: string }) {
             <Tilt tiltMaxAngleX={10} tiltMaxAngleY={10} scale={1.05} transitionSpeed={2000}>
               <div className="w-full bg-white p-3 sm:p-4 rounded-3xl shadow-2xl shadow-blue-900/20 border border-gray-100">
                 <div className="relative w-full h-40 sm:h-48 rounded-2xl overflow-hidden mb-3 sm:mb-4 bg-gray-100">
-                  <Image src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80" alt="Product" fill className="object-cover" />
+                  <Image src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80" alt="Product" fill sizes="288px" className="object-cover" />
                   <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] sm:text-xs font-bold text-blue-600 shadow-sm">Top Rated</div>
                 </div>
                 <h3 className="font-bold text-gray-900 text-base sm:text-lg mb-1">MacBook Air M2</h3>
@@ -170,7 +170,7 @@ export function HeroSection({ initialQuery = "" }: { initialQuery?: string }) {
               <div className="w-48 sm:w-56 bg-white/90 backdrop-blur-xl p-2 sm:p-3 rounded-2xl shadow-xl shadow-orange-500/10 border border-white">
                 <div className="flex items-center gap-2 sm:gap-3 mb-2">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden relative bg-gray-100">
-                    <Image src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=200&q=80" alt="Pro" fill className="object-cover" />
+                    <Image src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=200&q=80" alt="Pro" fill sizes="40px" className="object-cover" />
                   </div>
                   <div>
                     <h4 className="font-bold text-xs sm:text-sm text-gray-900">Sarah Jenkins</h4>

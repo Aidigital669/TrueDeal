@@ -1,11 +1,9 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import clientPromise from "./lib/mongodb";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: MongoDBAdapter(clientPromise),
   providers: [
     // We will add providers like Google or Credentials here later
   ],

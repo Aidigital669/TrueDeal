@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Heart, MapPin, Star } from "lucide-react";
+import { Heart, Star, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Tilt from "react-parallax-tilt";

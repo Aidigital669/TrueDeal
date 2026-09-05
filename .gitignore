@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE / agent folders
+.cursor/
+.devin/
+
+# scratch and local test scripts
+/scratch/
+test_*.ts
+test_*.js
+test_*.mjs
+wipe_atlas.cjs
+console.error*
+/true-deal/

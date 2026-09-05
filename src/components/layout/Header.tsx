@@ -3,168 +3,117 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Heart, ShoppingCart, Bell, User, Menu, X } from 'lucide-react';
+import { Heart, ShoppingCart, User, Menu, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
-    <header className="border-b bg-white">
-      {/* Top Bar */}
-      <div className="w-full px-4 md:px-8 lg:px-12 h-16 flex items-center justify-between gap-4">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="relative w-40 h-10">
-            <Image 
-              src="/truedeal.png" 
-              alt="TrueDeal Logo" 
-              fill
-              className="object-contain object-left"
-              priority
-            />
-          </div>
-        </Link>
+    <header className="w-full bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 font-sans">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
+        
+        {/* Left Section: Logo & Nav */}
+        <div className="flex items-center gap-8 lg:gap-12">
+          {/* TrueDeal Logo */}
+          <Link href="/" className="flex items-center">
+            <div className="relative w-40 h-10">
+              <Image 
+                src="/truedeal.png" 
+                alt="TrueDeal Logo" 
+                fill
+                sizes="160px"
+                className="object-contain object-left"
+                priority
+                loading="eager"
+              />
+            </div>
+          </Link>
 
-        {/* Navigation Links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-          <Link href="/products" className="text-muted-foreground hover:text-foreground">
-            Products & Services
-          </Link>
-          <Link href="/explore" className="text-primary font-semibold border-b-2 border-primary py-5">
-            Explore
-          </Link>
-          <Link href="/deals" className="text-muted-foreground hover:text-foreground">
-            Deals
-          </Link>
-        </nav>
-
-        {/* Search Bar */}
-        <div className="flex-1 max-w-md hidden lg:flex items-center relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search for products, services, experts, or tags"
-            className="w-full h-10 pl-10 pr-4 rounded-full border bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
-          />
+          {/* Minimalist Navigation Links */}
+          <nav className="hidden md:flex items-center gap-2 text-sm font-medium text-gray-500 font-sans">
+            <Link href="/explore" className="text-gray-900 bg-gray-100/50 px-3 py-1.5 rounded-full transition-colors">
+              Explore
+            </Link>
+            <Link href="/categories" className="hover:text-gray-900 hover:bg-gray-50 px-3 py-1.5 rounded-full transition-colors">
+              Categories
+            </Link>
+            <Link href="/for-sellers" className="hover:text-gray-900 hover:bg-gray-50 px-3 py-1.5 rounded-full transition-colors">
+              For Sellers
+            </Link>
+            <Link href="/how-it-works" className="hover:text-gray-900 hover:bg-gray-50 px-3 py-1.5 rounded-full transition-colors">
+              How It Works
+            </Link>
+          </nav>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="icon" className="hidden sm:flex text-gray-600">
-            <Heart className="h-5 w-5" />
+        {/* Right Section: Actions */}
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button variant="ghost" size="icon" className="hidden sm:flex text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full h-9 w-9 transition-colors">
+            <Heart className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-gray-600">
-            <ShoppingCart className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="hidden sm:flex text-gray-600">
-            <Bell className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="hidden sm:flex text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full h-9 w-9 transition-colors">
+            <ShoppingCart className="h-4 w-4" />
           </Button>
           
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
-            <Link href="/login">
-              <Button variant="ghost" className="text-gray-600 font-medium">
-                Login
-              </Button>
-            </Link>
-            <Button className="bg-primary hover:bg-primary/90 text-white font-semibold rounded-md px-6">
-              Sell / Offer
+          <div className="hidden md:block w-px h-4 bg-gray-200 mx-2"></div>
+          
+          <Link href="/login">
+            <Button variant="ghost" size="icon" className="hidden sm:flex text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full h-9 w-9 transition-colors">
+              <User className="h-4 w-4" />
             </Button>
-          </div>
+          </Link>
+          
+          {/* Sleek CTA Button */}
+          <Link href="/signup?type=seller">
+            <Button className="hidden md:flex items-center gap-1.5 bg-black hover:bg-gray-800 text-white rounded-full px-5 h-9 shadow-sm transition-all ml-2 font-sans font-medium text-sm">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Sell Item</span>
+            </Button>
+          </Link>
 
           {/* Mobile Menu Icon */}
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden text-gray-900"
+            className="md:hidden text-gray-900 hover:bg-gray-100 rounded-full"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
       </div>
 
-      {/* Secondary Category Nav (Desktop Only) */}
-      <div className="border-t hidden md:block">
-        <div className="w-full px-4 md:px-8 lg:px-12 h-12 flex items-center justify-between gap-4 text-sm font-medium text-gray-600 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <Link href="/categories/electronics" className="hover:text-primary shrink-0">
-            Electronics
-          </Link>
-          <Link href="/categories/fashion" className="hover:text-primary shrink-0">
-            Fashion
-          </Link>
-          <Link href="/categories/furniture" className="hover:text-primary shrink-0">
-            Furniture
-          </Link>
-          <Link href="/categories/home-services" className="hover:text-primary shrink-0">
-            Home Services
-          </Link>
-          <Link href="/categories/b2b" className="hover:text-primary shrink-0">
-            B2B Services
-          </Link>
-          <Link href="/categories/design" className="hover:text-primary shrink-0">
-            Design & Tech
-          </Link>
-          <Link href="/categories/home-services" className="hover:text-primary shrink-0">
-            Home Services
-          </Link>
-          <Link href="/categories/consulting" className="hover:text-primary shrink-0">
-            Consulting
-          </Link>
-          <Link href="/categories/more" className="hover:text-primary font-medium shrink-0">
-            See All
-          </Link>
-        </div>
-      </div>
-
       {/* Mobile Menu Dropdown */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="md:hidden border-t overflow-hidden bg-white"
-          >
-            <div className="p-4 flex flex-col gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full h-10 pl-10 pr-4 rounded-md border bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
-                />
-              </div>
-              <nav className="flex flex-col gap-3 font-medium text-gray-700">
-                <Link href="/products" onClick={() => setIsMobileMenuOpen(false)}>Products & Services</Link>
-                <Link href="/explore" onClick={() => setIsMobileMenuOpen(false)} className="text-blue-600">Explore</Link>
-                <Link href="/deals" onClick={() => setIsMobileMenuOpen(false)}>Deals</Link>
-              </nav>
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-gray-100 overflow-hidden bg-white/95 backdrop-blur-md shadow-lg animate-in fade-in duration-150">
+          <div className="p-4 flex flex-col gap-2">
+            <nav className="flex flex-col gap-1 font-medium text-gray-600">
+              <Link href="/explore" onClick={() => setIsMobileMenuOpen(false)} className="text-gray-900 bg-gray-50 px-4 py-3 rounded-xl">Explore</Link>
+              <Link href="/categories" onClick={() => setIsMobileMenuOpen(false)} className="hover:bg-gray-50 px-4 py-3 rounded-xl">Categories</Link>
+              <Link href="/for-sellers" onClick={() => setIsMobileMenuOpen(false)} className="hover:bg-gray-50 px-4 py-3 rounded-xl">For Sellers</Link>
+              <Link href="/how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="hover:bg-gray-50 px-4 py-3 rounded-xl">How It Works</Link>
+            </nav>
 
-              {/* Categories in Mobile Menu */}
-              <div className="flex flex-col gap-3 pt-4 border-t">
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Categories</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                  <Link href="/categories/electronics" onClick={() => setIsMobileMenuOpen(false)}>Electronics</Link>
-                  <Link href="/categories/fashion" onClick={() => setIsMobileMenuOpen(false)}>Fashion</Link>
-                  <Link href="/categories/furniture" onClick={() => setIsMobileMenuOpen(false)}>Furniture</Link>
-                  <Link href="/categories/home-services" onClick={() => setIsMobileMenuOpen(false)}>Home Services</Link>
-                  <Link href="/categories/b2b" onClick={() => setIsMobileMenuOpen(false)}>B2B Services</Link>
-                  <Link href="/categories/design" onClick={() => setIsMobileMenuOpen(false)}>Design & Tech</Link>
-                  <Link href="/categories/consulting" onClick={() => setIsMobileMenuOpen(false)}>Consulting</Link>
-                  <Link href="/categories/more" onClick={() => setIsMobileMenuOpen(false)} className="font-semibold text-blue-600">See All Categories</Link>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 mt-2 pt-4 border-t">
-                <Button variant="outline" className="w-full justify-center">Login</Button>
-                <Button className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white">Sell / Offer</Button>
-              </div>
+            <div className="flex items-center justify-around py-4 mt-2 border-t border-gray-100">
+              <Button variant="ghost" size="icon" className="text-gray-600 rounded-full">
+                <Heart className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-gray-600 rounded-full">
+                <ShoppingCart className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-gray-600 rounded-full">
+                <User className="h-5 w-5" />
+              </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            <Button className="w-full h-11 bg-black hover:bg-gray-800 text-white rounded-xl flex items-center justify-center gap-2 font-medium">
+              <Plus className="w-4 h-4" />
+              <span>Sell Item</span>
+            </Button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

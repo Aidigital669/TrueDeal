@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import {
   Accordion,
   AccordionContent,
@@ -10,7 +10,7 @@ import {
 import { HelpCircle } from "lucide-react";
 
 export function FaqSection() {
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -20,9 +20,9 @@ export function FaqSection() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 15 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
   };
 
   const faqs = [
@@ -72,7 +72,7 @@ export function FaqSection() {
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
         >
-          <Accordion type="single" collapsible={"true" as any} className="w-full space-y-4">
+          <Accordion className="w-full space-y-4">
             {faqs.map((faq, index) => (
               <motion.div key={index} variants={itemVariants}>
                 <AccordionItem 
