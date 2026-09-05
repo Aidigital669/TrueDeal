@@ -489,11 +489,45 @@ function scanRawHtmlImages(html: string, baseUrl: string): string[] {
 }
 
 /**
- * Intelligent Fallback Generator for products that have zero photography (e.g. VPS, SEO services)
+ * Intelligent Fallback Generator for products that have zero photography
  */
 export function getCategoryFallbackImage(category: string, title: string): string {
-  // Return empty string to guarantee zero fake/unrelated images are injected
-  return "";
+  const text = `${category || ""} ${title || ""}`.toLowerCase();
+  
+  if (text.includes("real estate") || text.includes("property") || text.includes("commercial") || text.includes("office") || text.includes("shop") || text.includes("showroom") || text.includes("sq.ft") || text.includes("sqft") || text.includes("pune") || text.includes("apartment") || text.includes("flat") || text.includes("villa") || text.includes("land") || text.includes("plot") || text.includes("premise") || text.includes("warehouse")) {
+    if (text.includes("shop") || text.includes("showroom") || text.includes("retail")) {
+      return "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=800&q=80"; // Retail showroom
+    }
+    if (text.includes("medical") || text.includes("hospital")) {
+      return "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=80"; // Hospital / medical facility
+    }
+    if (text.includes("residential") || text.includes("apartment") || text.includes("villa")) {
+      return "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80"; // Luxury residential property
+    }
+    return "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80"; // Modern commercial tech park / office building
+  }
+
+  if (text.includes("vps") || text.includes("server") || text.includes("cloud") || text.includes("hosting") || text.includes("datacenter") || text.includes("kvm") || text.includes("nvme")) {
+    return "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80"; // Server rack
+  }
+
+  if (text.includes("seo") || text.includes("marketing") || text.includes("consulting") || text.includes("agency") || text.includes("service") || text.includes("advisory") || text.includes("development") || text.includes("design") || text.includes("website")) {
+    return "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80"; // Business advisory
+  }
+
+  if (text.includes("food") || text.includes("malt") || text.includes("drink") || text.includes("snack") || text.includes("beverage") || text.includes("powder") || text.includes("organic") || text.includes("tea") || text.includes("coffee") || text.includes("ayurveda") || text.includes("ayur")) {
+    return "https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80"; // Organic healthy food
+  }
+
+  if (text.includes("clothing") || text.includes("apparel") || text.includes("fashion") || text.includes("dress") || text.includes("shirt") || text.includes("wear") || text.includes("shoe")) {
+    return "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80"; // Fashion apparel
+  }
+
+  if (text.includes("laptop") || text.includes("computer") || text.includes("phone") || text.includes("gadget") || text.includes("electronics") || text.includes("headphone") || text.includes("audio")) {
+    return "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80"; // Electronics / Laptop
+  }
+
+  return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80"; // General premium product
 }
 
 /**

@@ -4,6 +4,7 @@ import clientPromise from "../../../../lib/mongodb";
 import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserSession } from "@/lib/auth-actions";
+import { getCategoryFallbackImage } from "@/lib/image-extractor";
 
 // Seller-scoped In-Memory product registry (keyed by sellerId or sellerSlug)
 const LOCAL_IMPORTED_PRODUCTS_MAP = new Map<string, any[]>();
@@ -550,9 +551,14 @@ export async function importScrapedProductAction(productData: {
     const sellerSlug = session?.slug || (isAnv ? "anv-reealty" : "seller-store");
     const brandName = productData.brand || session?.storeName || (isAnv ? "ANV REEALTY" : "TrueDeal Verified");
 
-    const primaryImg = productData.primaryImage || productData.images?.[0] || "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&q=80";
-    const allImages = (productData.images && productData.images.length > 0)
-      ? productData.images.map((url, i) => ({ url, isPrimary: i === 0 }))
+    const primaryImg = (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
+      ? productData.primaryImage
+      : ((productData.images && productData.images.length > 0 && productData.images[0])
+        ? productData.images[0]
+        : getCategoryFallbackImage(productData.category || "", productData.title));
+
+    const allImages = (productData.images && productData.images.length > 0 && productData.images.some(Boolean))
+      ? productData.images.filter(Boolean).map((url, i) => ({ url, isPrimary: i === 0 }))
       : [{ url: primaryImg, isPrimary: true }];
 
     const inventoryCount = typeof productData.inventory === "number" ? productData.inventory : 20;
@@ -677,9 +683,14 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
     const defaultBrand = session?.storeName || (isAnv ? "ANV REEALTY" : "TrueDeal Verified");
 
     const docsToInsert = productsList.map((productData, index) => {
-      const primaryImg = productData.primaryImage || productData.images?.[0] || "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&q=80";
-      const allImages = (productData.images && productData.images.length > 0)
-        ? productData.images.map((url, i) => ({ url, isPrimary: i === 0 }))
+      const primaryImg = (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
+        ? productData.primaryImage
+        : ((productData.images && productData.images.length > 0 && productData.images[0])
+          ? productData.images[0]
+          : getCategoryFallbackImage(productData.category || "", productData.title));
+
+      const allImages = (productData.images && productData.images.length > 0 && productData.images.some(Boolean))
+        ? productData.images.filter(Boolean).map((url, i) => ({ url, isPrimary: i === 0 }))
         : [{ url: primaryImg, isPrimary: true }];
 
       const inventoryCount = typeof productData.inventory === "number" ? productData.inventory : 20;

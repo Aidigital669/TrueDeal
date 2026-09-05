@@ -839,7 +839,26 @@ export async function crawlFullWebsite(targetUrl: string, maxPages: number = 40)
   }
 
   // Prepare Extracted Data for Preview (Import happens on user confirmation)
-  logs.push(`[EXTRACTION COMPLETE] Extracted ${products.length} genuine properties & projects. Ready for review and manual catalog import.`);
+  const authenticDomainMedia = company.gallery
+    .map(g => g.url)
+    .filter(u => u && isValidProductImage(u) && !u.toLowerCase().includes("logo") && !u.toLowerCase().includes("icon") && !u.toLowerCase().includes("badge"));
+
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i];
+    if (!p.primaryImage || !isValidProductImage(p.primaryImage)) {
+      if (authenticDomainMedia.length > 0) {
+        const domainPhoto = authenticDomainMedia[i % authenticDomainMedia.length];
+        p.primaryImage = domainPhoto;
+        p.images = [domainPhoto];
+      } else {
+        const catImg = getCategoryFallbackImage(p.category, p.title);
+        p.primaryImage = catImg;
+        p.images = [catImg];
+      }
+    }
+  }
+
+  logs.push(`[EXTRACTION COMPLETE] Extracted ${products.length} genuine properties & projects with full media. Ready for review and manual catalog import.`);
   const databaseSaved = 0;
 
   const uniqueCategories = new Set(products.map(p => p.category)).size;
