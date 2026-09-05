@@ -10,12 +10,18 @@ import { getCategoryFallbackImage } from "@/lib/image-extractor";
 const LOCAL_IMPORTED_PRODUCTS_MAP = new Map<string, any[]>();
 
 export async function getLocalImportedProducts(sellerKey?: string) {
+  if (sellerKey === "all") {
+    return Array.from(LOCAL_IMPORTED_PRODUCTS_MAP.values()).flat();
+  }
   if (sellerKey) {
     return LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
   }
   const session = await getCurrentUserSession();
-  const key = session?.slug || session?.userId || "global";
-  return LOCAL_IMPORTED_PRODUCTS_MAP.get(key) || [];
+  const key = session?.slug || session?.userId;
+  if (key && LOCAL_IMPORTED_PRODUCTS_MAP.has(key)) {
+    return LOCAL_IMPORTED_PRODUCTS_MAP.get(key) || [];
+  }
+  return Array.from(LOCAL_IMPORTED_PRODUCTS_MAP.values()).flat();
 }
 
 function safeObjectId(id: any): ObjectId | null {
