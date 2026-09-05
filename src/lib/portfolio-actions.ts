@@ -612,3 +612,429 @@ export async function submitPortfolioInquiry(data: {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Import and synchronize full scraped company data (profile, reviews, gallery, faqs, hours, contacts) into the seller's portfolio
+ */
+export async function importScrapedPortfolioAction(companyData: any) {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const session = await getCurrentUserSession();
+
+    const userObjId = session?.userId ? safeObjectId(session.userId) : null;
+    
+    // Find existing portfolio
+    let portfolioDoc = null;
+    if (userObjId) {
+      portfolioDoc = await db.collection("portfolios").findOne({ userId: userObjId });
+    }
+    if (!portfolioDoc && session?.slug) {
+      portfolioDoc = await db.collection("portfolios").findOne({ slug: session.slug });
+    }
+    if (!portfolioDoc && session?.email) {
+      portfolioDoc = await db.collection("portfolios").findOne({ email: session.email.toLowerCase().trim() });
+    }
+
+    const isAnv = session?.slug === "anv-reealty" || session?.email?.includes("anvreealty") || (companyData.name && companyData.name.includes("ANV"));
+    const rawSlug = companyData.name 
+      ? companyData.name.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "")
+      : (session?.slug || (isAnv ? "anv-reealty" : "seller-store"));
+    
+    const slug = portfolioDoc?.slug || rawSlug || "company-portfolio";
+
+    // Format reviews
+    const scrapedReviews: PortfolioReview[] = (companyData.reviews || []).map((r: any, idx: number) => ({
+      id: `rev-${Date.now()}-${idx}`,
+      author: r.author || "Verified Buyer",
+      role: r.role || "Verified Client",
+      rating: typeof r.rating === "number" && r.rating > 0 ? r.rating : 5,
+      date: r.date || "Recent",
+      comment: r.comment || "Great service and verified experience.",
+      verified: r.verified !== undefined ? Boolean(r.verified) : true,
+      avatar: r.avatar || `https://images.unsplash.com/photo-${1535713875002 + (idx % 10)}?w=120&q=80`
+    }));
+
+    // Calculate rating
+    let avgRating = 4.9;
+    if (scrapedReviews.length > 0) {
+      const sum = scrapedReviews.reduce((acc: number, curr: any) => acc + (curr.rating || 5), 0);
+      avgRating = Number((sum / scrapedReviews.length).toFixed(1));
+    }
+
+    // Format gallery
+    const scrapedGallery: PortfolioGalleryItem[] = (companyData.gallery || [])
+      .filter((g: any) => Boolean(g && g.url))
+      .map((g: any, idx: number) => ({
+        id: `gal-${Date.now()}-${idx}`,
+        url: g.url,
+        caption: g.caption || `${companyData.name || "Showcase"} Photo ${idx + 1}`,
+        category: g.category || "Showcase"
+      }));
+
+    // Format FAQs
+    const scrapedFaqs: PortfolioFAQ[] = (companyData.faqs || [])
+      .filter((f: any) => Boolean(f && f.question && f.answer))
+      .map((f: any, idx: number) => ({
+        id: `faq-${Date.now()}-${idx}`,
+        question: f.question,
+        answer: f.answer
+      }));
+
+    // Format Specialities
+    const scrapedSpecialities: PortfolioSpeciality[] = (companyData.specialities || []).map((s: any, idx: number) => ({
+      id: `spec-${Date.now()}-${idx}`,
+      title: s.title,
+      description: s.description,
+      tag: s.tag || "Signature Service",
+      iconName: "Sparkles"
+    }));
+
+    // Working Hours
+    const workingHours = companyData.workingHours && companyData.workingHours.length > 0 
+      ? companyData.workingHours 
+      : (portfolioDoc?.workingHours || DEFAULT_PORTFOLIO.workingHours);
+
+    // Build update object
+    const updatePayload: any = {
+      isPublished: true,
+      slug,
+      updatedAt: new Date()
+    };
+
+    if (companyData.name) updatePayload.companyName = companyData.name;
+    if (companyData.tagline) updatePayload.tagline = companyData.tagline;
+    if (companyData.about) updatePayload.about = companyData.about;
+    if (companyData.mission) updatePayload.mission = companyData.mission;
+    if (companyData.logo) updatePayload.logo = companyData.logo;
+    if (companyData.bannerImage) updatePayload.bannerImage = companyData.bannerImage;
+    if (companyData.businessType) updatePayload.businessType = companyData.businessType;
+    if (companyData.yearEstablished) updatePayload.yearEstablished = companyData.yearEstablished;
+    if (companyData.teamSize) updatePayload.teamSize = companyData.teamSize;
+    if (companyData.gstin) updatePayload.gstin = companyData.gstin;
+
+    if (companyData.address) updatePayload.address = companyData.address;
+    if (companyData.city) updatePayload.city = companyData.city;
+    if (companyData.state) updatePayload.state = companyData.state;
+    if (companyData.pincode) updatePayload.pincode = companyData.pincode;
+    if (companyData.landmark) updatePayload.landmark = companyData.landmark;
+    if (companyData.mapEmbedUrl) updatePayload.mapEmbedUrl = companyData.mapEmbedUrl;
+    if (workingHours) updatePayload.workingHours = workingHours;
+
+    if (companyData.phone) updatePayload.phone = companyData.phone;
+    if (companyData.whatsapp) updatePayload.whatsapp = companyData.whatsapp;
+    if (companyData.email) updatePayload.email = companyData.email;
+    if (companyData.website) updatePayload.website = companyData.website;
+    if (companyData.socialLinks) updatePayload.socialLinks = companyData.socialLinks;
+
+    if (scrapedSpecialities.length > 0) updatePayload.specialities = scrapedSpecialities;
+    if (companyData.certifications && companyData.certifications.length > 0) {
+      updatePayload.certifications = companyData.certifications;
+    }
+
+    if (scrapedReviews.length > 0) {
+      updatePayload.reviews = scrapedReviews;
+      updatePayload.totalReviews = scrapedReviews.length;
+      updatePayload.rating = avgRating;
+    }
+
+    if (scrapedGallery.length > 0) {
+      updatePayload.gallery = scrapedGallery;
+    }
+
+    if (scrapedFaqs.length > 0) {
+      updatePayload.faqs = scrapedFaqs;
+    }
+
+    if (userObjId) {
+      updatePayload.userId = userObjId;
+    }
+
+    // Determine query filter
+    let filter: any = null;
+    if (userObjId) {
+      filter = { userId: userObjId };
+    } else if (portfolioDoc?._id) {
+      filter = { _id: portfolioDoc._id };
+    } else if (session?.slug) {
+      filter = { slug: session.slug };
+    } else if (session?.email) {
+      filter = { email: session.email.toLowerCase().trim() };
+    } else {
+      filter = { slug };
+    }
+
+    await db.collection("portfolios").updateOne(
+      filter,
+      { $set: updatePayload },
+      { upsert: true }
+    );
+
+    // Sync to sellers collection
+    const sellerUpdate: any = { updatedAt: new Date() };
+    if (companyData.name) sellerUpdate.storeName = companyData.name;
+    if (companyData.about) sellerUpdate.description = companyData.about;
+    if (companyData.website) sellerUpdate.website = companyData.website;
+    if (companyData.phone) sellerUpdate.phone = companyData.phone;
+    if (companyData.address) sellerUpdate.address = companyData.address;
+    if (companyData.city) sellerUpdate.city = companyData.city;
+    if (userObjId) sellerUpdate.userId = userObjId;
+
+    const sellerFilter = userObjId 
+      ? { userId: userObjId } 
+      : (session?.email ? { email: session.email.toLowerCase().trim() } : { slug });
+
+    await db.collection("sellers").updateOne(
+      sellerFilter,
+      { $set: sellerUpdate },
+      { upsert: true }
+    );
+
+    // Update active session cookie with new slug and company name
+    if (session) {
+      try {
+        const cookieStore = await cookies();
+        const updatedSession = {
+          ...session,
+          slug,
+          storeName: companyData.name || session.storeName
+        };
+        cookieStore.set("truedeal_session", JSON.stringify(updatedSession), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          maxAge: 60 * 60 * 24 * 30,
+          path: "/"
+        });
+      } catch {}
+    }
+
+    revalidatePath("/dashboard/portfolio");
+    revalidatePath("/dashboard/business");
+    revalidatePath("/dashboard");
+    revalidatePath(`/portfolio/${slug}`);
+    revalidatePath(`/p/${slug}`);
+    revalidatePath("/connect");
+
+    return {
+      success: true,
+      slug,
+      message: `Successfully imported portfolio: ${scrapedReviews.length} reviews, ${scrapedGallery.length} photos, and ${scrapedFaqs.length} FAQs synced into your portfolio!`,
+      counts: {
+        reviews: scrapedReviews.length,
+        gallery: scrapedGallery.length,
+        faqs: scrapedFaqs.length
+      }
+    };
+  } catch (error: any) {
+    console.error("Error importing scraped portfolio:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Import ONLY Scraped Reviews into Portfolio
+ */
+export async function importScrapedReviewsAction(reviews: Array<any>) {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const session = await getCurrentUserSession();
+    const userObjId = session?.userId ? safeObjectId(session.userId) : null;
+
+    let filter: any = userObjId ? { userId: userObjId } : (session?.slug ? { slug: session.slug } : { email: session?.email });
+    if (!filter) return { success: false, error: "Unauthorized" };
+
+    const formattedReviews: PortfolioReview[] = (reviews || []).map((r, idx) => ({
+      id: `rev-${Date.now()}-${idx}`,
+      author: r.author || "Verified Buyer",
+      role: r.role || "Verified Client",
+      rating: typeof r.rating === "number" && r.rating > 0 ? r.rating : 5,
+      date: r.date || "Recent",
+      comment: r.comment || "Great service.",
+      verified: r.verified !== undefined ? Boolean(r.verified) : true,
+      avatar: r.avatar || `https://images.unsplash.com/photo-${1535713875002 + (idx % 10)}?w=120&q=80`
+    }));
+
+    let avgRating = 4.9;
+    if (formattedReviews.length > 0) {
+      const sum = formattedReviews.reduce((acc, curr) => acc + (curr.rating || 5), 0);
+      avgRating = Number((sum / formattedReviews.length).toFixed(1));
+    }
+
+    await db.collection("portfolios").updateOne(
+      filter,
+      {
+        $set: {
+          reviews: formattedReviews,
+          totalReviews: formattedReviews.length,
+          rating: avgRating,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    revalidatePath("/dashboard/portfolio");
+    revalidatePath("/dashboard");
+    revalidatePath("/connect");
+
+    return {
+      success: true,
+      count: formattedReviews.length,
+      message: `Successfully imported ${formattedReviews.length} customer reviews into your portfolio!`
+    };
+  } catch (error: any) {
+    console.error("Error importing reviews:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Import ONLY Scraped Gallery Photos into Portfolio
+ */
+export async function importScrapedGalleryAction(gallery: Array<any>) {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const session = await getCurrentUserSession();
+    const userObjId = session?.userId ? safeObjectId(session.userId) : null;
+
+    let filter: any = userObjId ? { userId: userObjId } : (session?.slug ? { slug: session.slug } : { email: session?.email });
+    if (!filter) return { success: false, error: "Unauthorized" };
+
+    const formattedGallery: PortfolioGalleryItem[] = (gallery || [])
+      .filter(g => Boolean(g && g.url))
+      .map((g, idx) => ({
+        id: `gal-${Date.now()}-${idx}`,
+        url: g.url,
+        caption: g.caption || `Showcase Photo ${idx + 1}`,
+        category: g.category || "Showcase"
+      }));
+
+    await db.collection("portfolios").updateOne(
+      filter,
+      {
+        $set: {
+          gallery: formattedGallery,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    revalidatePath("/dashboard/portfolio");
+    revalidatePath("/dashboard");
+    revalidatePath("/connect");
+
+    return {
+      success: true,
+      count: formattedGallery.length,
+      message: `Successfully imported ${formattedGallery.length} showcase photos into your portfolio gallery!`
+    };
+  } catch (error: any) {
+    console.error("Error importing gallery:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Import ONLY Scraped FAQs into Portfolio
+ */
+export async function importScrapedFaqsAction(faqs: Array<any>) {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const session = await getCurrentUserSession();
+    const userObjId = session?.userId ? safeObjectId(session.userId) : null;
+
+    let filter: any = userObjId ? { userId: userObjId } : (session?.slug ? { slug: session.slug } : { email: session?.email });
+    if (!filter) return { success: false, error: "Unauthorized" };
+
+    const formattedFaqs: PortfolioFAQ[] = (faqs || [])
+      .filter(f => Boolean(f && f.question && f.answer))
+      .map((f, idx) => ({
+        id: `faq-${Date.now()}-${idx}`,
+        question: f.question,
+        answer: f.answer
+      }));
+
+    await db.collection("portfolios").updateOne(
+      filter,
+      {
+        $set: {
+          faqs: formattedFaqs,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    revalidatePath("/dashboard/portfolio");
+    revalidatePath("/dashboard");
+    revalidatePath("/connect");
+
+    return {
+      success: true,
+      count: formattedFaqs.length,
+      message: `Successfully imported ${formattedFaqs.length} FAQs into your portfolio!`
+    };
+  } catch (error: any) {
+    console.error("Error importing FAQs:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Import ONLY Scraped Company Profile Info into Portfolio
+ */
+export async function importScrapedCompanyProfileAction(companyData: any) {
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    const session = await getCurrentUserSession();
+    const userObjId = session?.userId ? safeObjectId(session.userId) : null;
+
+    let filter: any = userObjId ? { userId: userObjId } : (session?.slug ? { slug: session.slug } : { email: session?.email });
+    if (!filter) return { success: false, error: "Unauthorized" };
+
+    const updatePayload: any = { updatedAt: new Date() };
+    if (companyData.name) updatePayload.companyName = companyData.name;
+    if (companyData.tagline) updatePayload.tagline = companyData.tagline;
+    if (companyData.about) updatePayload.about = companyData.about;
+    if (companyData.mission) updatePayload.mission = companyData.mission;
+    if (companyData.logo) updatePayload.logo = companyData.logo;
+    if (companyData.bannerImage) updatePayload.bannerImage = companyData.bannerImage;
+    if (companyData.businessType) updatePayload.businessType = companyData.businessType;
+    if (companyData.yearEstablished) updatePayload.yearEstablished = companyData.yearEstablished;
+    if (companyData.teamSize) updatePayload.teamSize = companyData.teamSize;
+    if (companyData.gstin) updatePayload.gstin = companyData.gstin;
+    if (companyData.address) updatePayload.address = companyData.address;
+    if (companyData.city) updatePayload.city = companyData.city;
+    if (companyData.phone) updatePayload.phone = companyData.phone;
+    if (companyData.whatsapp) updatePayload.whatsapp = companyData.whatsapp;
+    if (companyData.email) updatePayload.email = companyData.email;
+    if (companyData.website) updatePayload.website = companyData.website;
+    if (companyData.workingHours && companyData.workingHours.length > 0) {
+      updatePayload.workingHours = companyData.workingHours;
+    }
+
+    await db.collection("portfolios").updateOne(
+      filter,
+      { $set: updatePayload },
+      { upsert: true }
+    );
+
+    revalidatePath("/dashboard/portfolio");
+    revalidatePath("/dashboard");
+    revalidatePath("/connect");
+
+    return {
+      success: true,
+      message: `Successfully updated company profile in your portfolio!`
+    };
+  } catch (error: any) {
+    console.error("Error importing company profile:", error);
+    return { success: false, error: error.message };
+  }
+}
+

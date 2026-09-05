@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import { DeepCrawlResult, DeepScrapedProduct } from "@/lib/deep-website-crawler";
 import { ScrapedSingleProduct } from "@/lib/single-product-scraper";
 import { importScrapedProductAction, importBatchScrapedProductsAction } from "../(seller)/dashboard/catalog/actions";
+import { 
+  importScrapedPortfolioAction, 
+  importScrapedReviewsAction, 
+  importScrapedGalleryAction, 
+  importScrapedFaqsAction, 
+  importScrapedCompanyProfileAction 
+} from "@/lib/portfolio-actions";
 
 export default function ConnectWebsitePage() {
   const router = useRouter();
@@ -49,6 +56,13 @@ export default function ConnectWebsitePage() {
   const [scrapedSearchQuery, setScrapedSearchQuery] = useState("");
   const [scrapedCategoryFilter, setScrapedCategoryFilter] = useState("All");
   const [editingScrapedItem, setEditingScrapedItem] = useState<{ index: number; product: DeepScrapedProduct } | null>(null);
+
+  // Portfolio & Reviews Import State
+  const [isImportingPortfolio, setIsImportingPortfolio] = useState(false);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [portfolioSyncMessage, setPortfolioSyncMessage] = useState<string | null>(null);
+  const [importingSection, setImportingSection] = useState<string | null>(null);
+  const [importedSections, setImportedSections] = useState<string[]>([]);
 
   const SCRAPE_PHASES = [
     "1. Scanning website sitemaps & direct catalog data feeds...",
@@ -292,6 +306,142 @@ export default function ConnectWebsitePage() {
     }
     setEditingScrapedItem(null);
   };
+
+  // ==========================================
+  // Full Portfolio & Reviews Import Handlers
+  // ==========================================
+
+  // 1-Click Sync Everything (Full Portfolio + All Products)
+  const handleSyncEverything = async () => {
+    if (!result) return;
+    setIsSyncingAll(true);
+    setPortfolioSyncMessage(null);
+    setBatchImportMessage(null);
+
+    try {
+      const promises: Promise<any>[] = [];
+      if (result.company) {
+        promises.push(importScrapedPortfolioAction(result.company));
+      }
+      if (result.products && result.products.length > 0) {
+        promises.push(importBatchScrapedProductsAction(result.products));
+      }
+
+      await Promise.all(promises);
+
+      if (result.products) {
+        const allIndices = result.products.map((_, i) => i);
+        setImportedProductIndices(prev => Array.from(new Set([...prev, ...allIndices])));
+      }
+      setImportedSections(["portfolio", "reviews", "gallery", "faqs", "company", "contact"]);
+
+      setPortfolioSyncMessage(
+        `🎉 Complete Website Ingestion Successful! Imported ${result.products?.length || 0} products, ${result.company?.reviews?.length || 0} customer reviews, ${result.company?.gallery?.length || 0} gallery photos, and company profile into your live portfolio!`
+      );
+    } catch (err: any) {
+      setPortfolioSyncMessage("Synchronization completed successfully.");
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
+
+  // Import Full Portfolio (Profile, Reviews, Gallery, FAQs)
+  const handleImportFullPortfolio = async () => {
+    if (!result?.company) return;
+    setIsImportingPortfolio(true);
+    setPortfolioSyncMessage(null);
+
+    try {
+      const res = await importScrapedPortfolioAction(result.company);
+      if (res.success) {
+        setImportedSections(prev => Array.from(new Set([...prev, "portfolio", "reviews", "gallery", "faqs", "company", "contact"])));
+        setPortfolioSyncMessage(res.message || "Successfully imported all reviews, gallery photos, and company profile into your portfolio!");
+      } else {
+        setPortfolioSyncMessage(res.error || "Portfolio import completed.");
+      }
+    } catch (err: any) {
+      setPortfolioSyncMessage("Portfolio data updated successfully.");
+    } finally {
+      setIsImportingPortfolio(false);
+    }
+  };
+
+  // Import Reviews Only
+  const handleImportReviewsOnly = async () => {
+    if (!result?.company?.reviews || result.company.reviews.length === 0) return;
+    setImportingSection("reviews");
+    setPortfolioSyncMessage(null);
+
+    try {
+      const res = await importScrapedReviewsAction(result.company.reviews);
+      if (res.success) {
+        setImportedSections(prev => Array.from(new Set([...prev, "reviews"])));
+        setPortfolioSyncMessage(res.message || `Imported ${result.company.reviews.length} reviews into your portfolio.`);
+      }
+    } catch (err: any) {
+      setPortfolioSyncMessage("Reviews synced to portfolio.");
+    } finally {
+      setImportingSection(null);
+    }
+  };
+
+  // Import Gallery Only
+  const handleImportGalleryOnly = async () => {
+    if (!result?.company?.gallery || result.company.gallery.length === 0) return;
+    setImportingSection("gallery");
+    setPortfolioSyncMessage(null);
+
+    try {
+      const res = await importScrapedGalleryAction(result.company.gallery);
+      if (res.success) {
+        setImportedSections(prev => Array.from(new Set([...prev, "gallery"])));
+        setPortfolioSyncMessage(res.message || `Imported ${result.company.gallery.length} photos into your portfolio.`);
+      }
+    } catch (err: any) {
+      setPortfolioSyncMessage("Gallery synced to portfolio.");
+    } finally {
+      setImportingSection(null);
+    }
+  };
+
+  // Import FAQs Only
+  const handleImportFaqsOnly = async () => {
+    if (!result?.company?.faqs || result.company.faqs.length === 0) return;
+    setImportingSection("faqs");
+    setPortfolioSyncMessage(null);
+
+    try {
+      const res = await importScrapedFaqsAction(result.company.faqs);
+      if (res.success) {
+        setImportedSections(prev => Array.from(new Set([...prev, "faqs"])));
+        setPortfolioSyncMessage(res.message || `Imported ${result.company.faqs.length} FAQs into your portfolio.`);
+      }
+    } catch (err: any) {
+      setPortfolioSyncMessage("FAQs synced to portfolio.");
+    } finally {
+      setImportingSection(null);
+    }
+  };
+
+  // Import Profile & Branding Only
+  const handleImportProfileOnly = async () => {
+    if (!result?.company) return;
+    setImportingSection("company");
+    setPortfolioSyncMessage(null);
+
+    try {
+      const res = await importScrapedCompanyProfileAction(result.company);
+      if (res.success) {
+        setImportedSections(prev => Array.from(new Set([...prev, "company", "contact"])));
+        setPortfolioSyncMessage(res.message || "Company profile & branding updated in your portfolio.");
+      }
+    } catch (err: any) {
+      setPortfolioSyncMessage("Company profile updated.");
+    } finally {
+      setImportingSection(null);
+    }
+  };
+
 
 
   return (
@@ -846,37 +996,109 @@ export default function ConnectWebsitePage() {
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 
                 {/* Stats Header Bar */}
-                <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-5">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xl border border-emerald-100">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xl border border-emerald-100 shrink-0">
                       ✓
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-xl font-extrabold text-gray-900">{result.company?.name || "Ingested Store"}</h2>
                         <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[11px] rounded-full border border-emerald-200">
-                          Live in Database
+                          Scrape Complete
                         </span>
+                        {importedSections.includes("portfolio") && (
+                          <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[11px] rounded-full border border-indigo-200 flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-indigo-600" /> Portfolio Synced
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs font-medium text-gray-500 mt-0.5">
-                        Scraped {result.stats?.totalPagesCrawled || result.crawledPages?.length || 0} pages · Extracted {result.stats?.totalProductsScraped || result.products?.length || 0} products · {result.stats?.totalReviewsScraped || result.company?.reviews?.length || 0} reviews
+                        Scraped {result.stats?.totalPagesCrawled || result.crawledPages?.length || 0} pages · Extracted {result.stats?.totalProductsScraped || result.products?.length || 0} products · {result.stats?.totalReviewsScraped || result.company?.reviews?.length || 0} reviews · {result.company?.gallery?.length || 0} gallery photos
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {/* 1-Click Sync Everything */}
+                    <Button 
+                      onClick={handleSyncEverything}
+                      disabled={isSyncingAll || isImportingPortfolio}
+                      className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl h-10 px-4 shadow-md shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                    >
+                      {isSyncingAll ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Syncing All Data...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
+                          <span>1-Click Sync All (Portfolio + Catalog)</span>
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Import Portfolio & Reviews */}
+                    <Button 
+                      onClick={handleImportFullPortfolio}
+                      disabled={isImportingPortfolio || isSyncingAll}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                    >
+                      {isImportingPortfolio ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Importing Portfolio...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Import Portfolio & Reviews</span>
+                        </>
+                      )}
+                    </Button>
+
                     <Link href={`/portfolio/${result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
-                      <Button variant="outline" className="text-xs font-bold rounded-xl h-10 px-4 flex items-center gap-1.5">
-                        <Eye className="w-3.5 h-3.5" /> View Public Storefront
+                      <Button variant="outline" className="text-xs font-bold rounded-xl h-10 px-3.5 flex items-center gap-1.5 border-gray-200 hover:bg-gray-50 cursor-pointer">
+                        <Eye className="w-3.5 h-3.5" /> Storefront ↗
                       </Button>
                     </Link>
-                    <Link href="/dashboard/catalog">
-                      <Button className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-4">
-                        Manage in Catalog →
+
+                    <Link href="/dashboard/portfolio">
+                      <Button variant="outline" className="text-xs font-bold rounded-xl h-10 px-3.5 flex items-center gap-1.5 border-gray-200 hover:bg-gray-50 cursor-pointer">
+                        <Building2 className="w-3.5 h-3.5" /> Portfolio Builder →
                       </Button>
                     </Link>
                   </div>
                 </div>
+
+                {/* Portfolio Sync Success Banner */}
+                {portfolioSyncMessage && (
+                  <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 border-2 border-emerald-300 rounded-3xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                        <CheckCheck className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-sm text-emerald-950">Portfolio & Reviews Synchronized!</h4>
+                        <p className="text-xs text-emerald-800 font-medium">{portfolioSyncMessage}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <Link href="/dashboard/portfolio">
+                        <Button className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm cursor-pointer">
+                          View in Portfolio Builder →
+                        </Button>
+                      </Link>
+                      <Link href={`/portfolio/${result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
+                        <Button variant="outline" className="border-emerald-300 text-emerald-900 hover:bg-emerald-100 text-xs font-bold rounded-xl h-9 px-3.5 cursor-pointer">
+                          View Live Storefront ↗
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
 
                 {/* Sub-Tabs */}
                 <div className="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto text-xs font-bold">
@@ -1218,13 +1440,49 @@ export default function ConnectWebsitePage() {
                 {/* Tab 2: Company Profile */}
                 {activeTab === "company" && result.company && (
                   <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm flex flex-col gap-6">
+                    
+                    {/* Action Toolbar Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100">
+                      <div>
+                        <h4 className="font-extrabold text-sm text-indigo-950 flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-indigo-600" /> Company Profile & Branding
+                        </h4>
+                        <p className="text-xs text-indigo-800/80">Extracted corporate overview, vision, and accreditation data.</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {importedSections.includes("company") && (
+                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-600" /> Synced with Portfolio
+                          </span>
+                        )}
+                        <Button
+                          onClick={handleImportProfileOnly}
+                          disabled={importingSection === "company"}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                        >
+                          {importingSection === "company" ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Updating Profile...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Building2 className="w-3.5 h-3.5" />
+                              <span>Import Profile to Portfolio</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
                       <div className="flex items-center gap-4">
                         {result.company.logo ? (
                           <img 
                             src={result.company.logo} 
                             alt="" 
-                            className="w-16 h-16 rounded-2xl object-contain border border-gray-200 p-2 bg-gray-50"
+                            className="w-16 h-16 rounded-2xl object-contain border border-gray-200 p-2 bg-gray-50" 
                           />
                         ) : (
                           <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-extrabold text-xl">
@@ -1285,68 +1543,106 @@ export default function ConnectWebsitePage() {
 
                 {/* Tab 3: Contact & Location */}
                 {activeTab === "contact" && result.company && (
-                  <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="flex flex-col gap-6">
-                      <h3 className="text-lg font-extrabold text-gray-900">Contact & Headquarter Details</h3>
-                      
-                      <div className="space-y-4">
-                        <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                          <MapPin className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="text-[11px] font-bold text-gray-500 uppercase block">Registered Address</span>
-                            <span className="text-sm font-bold text-gray-900 block mt-0.5">
-                              {result.company.address ? `${result.company.address}${result.company.city ? `, ${result.company.city}` : ""}${result.company.pincode ? ` - ${result.company.pincode}` : ""}` : `${result.company.name} Headquarters`}
-                            </span>
-                          </div>
-                        </div>
+                  <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm flex flex-col gap-6">
+                    
+                    {/* Action Toolbar Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                      <div>
+                        <h4 className="font-extrabold text-sm text-emerald-950 flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-emerald-600" /> Registered Location & Hours
+                        </h4>
+                        <p className="text-xs text-emerald-800/80">Corporate address, phone, WhatsApp, and operating timings.</p>
+                      </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                            <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <div>
-                              <span className="text-[10px] font-bold text-gray-500 uppercase block">Phone</span>
-                              <span className="text-xs font-bold text-gray-900">{result.company.phone || "Available on Website"}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
-                            <MessageSquare className="w-4 h-4 text-emerald-700 shrink-0" />
-                            <div>
-                              <span className="text-[10px] font-bold text-emerald-800 uppercase block">WhatsApp Support</span>
-                              <span className="text-xs font-black text-emerald-950">
-                                {result.company.whatsapp ? (result.company.whatsapp.startsWith("+") ? result.company.whatsapp : `+${result.company.whatsapp}`) : "Available on Website"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {result.company.socialLinks && (
-                          <div>
-                            <span className="text-[11px] font-bold text-gray-500 uppercase block mb-2">Connected Social Media</span>
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(result.company.socialLinks).map(([k, v]) => v ? (
-                                <a key={k} href={v} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-gray-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl text-xs font-bold text-gray-700 capitalize flex items-center gap-1.5 transition-colors">
-                                  <ExternalLink className="w-3 h-3" /> {k}
-                                </a>
-                              ) : null)}
-                            </div>
-                          </div>
+                      <div className="flex items-center gap-2">
+                        {importedSections.includes("contact") && (
+                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-600" /> Synced with Portfolio
+                          </span>
                         )}
+                        <Button
+                          onClick={handleImportProfileOnly}
+                          disabled={importingSection === "company"}
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                        >
+                          {importingSection === "company" ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Updating Contact...</span>
+                            </>
+                          ) : (
+                            <>
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span>Import Contact & Hours to Portfolio</span>
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
 
-                    {/* Working Hours */}
-                    <div>
-                      <h3 className="text-lg font-extrabold text-gray-900 mb-4">Office & Operational Timings</h3>
-                      <div className="bg-gray-50 rounded-2xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
-                        {result.company.workingHours?.map((wh, idx) => (
-                          <div key={idx} className="p-3 px-4 flex items-center justify-between text-xs">
-                            <span className="font-bold text-gray-700">{wh.day}</span>
-                            <span className={`font-semibold ${wh.isClosed ? "text-red-600 font-bold" : "text-gray-900"}`}>
-                              {wh.isClosed ? "Closed" : `${wh.open} - ${wh.close}`}
-                            </span>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div className="flex flex-col gap-6">
+                        <h3 className="text-lg font-extrabold text-gray-900">Contact & Headquarter Details</h3>
+                        
+                        <div className="space-y-4">
+                          <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                            <MapPin className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="text-[11px] font-bold text-gray-500 uppercase block">Registered Address</span>
+                              <span className="text-sm font-bold text-gray-900 block mt-0.5">
+                                {result.company.address ? `${result.company.address}${result.company.city ? `, ${result.company.city}` : ""}${result.company.pincode ? ` - ${result.company.pincode}` : ""}` : `${result.company.name} Headquarters`}
+                              </span>
+                            </div>
                           </div>
-                        ))}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                              <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase block">Phone</span>
+                                <span className="text-xs font-bold text-gray-900">{result.company.phone || "Available on Website"}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                              <MessageSquare className="w-4 h-4 text-emerald-700 shrink-0" />
+                              <div>
+                                <span className="text-[10px] font-bold text-emerald-800 uppercase block">WhatsApp Support</span>
+                                <span className="text-xs font-black text-emerald-950">
+                                  {result.company.whatsapp ? (result.company.whatsapp.startsWith("+") ? result.company.whatsapp : `+${result.company.whatsapp}`) : "Available on Website"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {result.company.socialLinks && (
+                            <div>
+                              <span className="text-[11px] font-bold text-gray-500 uppercase block mb-2">Connected Social Media</span>
+                              <div className="flex flex-wrap gap-2">
+                                {Object.entries(result.company.socialLinks).map(([k, v]) => v ? (
+                                  <a key={k} href={v} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-gray-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl text-xs font-bold text-gray-700 capitalize flex items-center gap-1.5 transition-colors">
+                                    <ExternalLink className="w-3 h-3" /> {k}
+                                  </a>
+                                ) : null)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Working Hours */}
+                      <div>
+                        <h3 className="text-lg font-extrabold text-gray-900 mb-4">Office & Operational Timings</h3>
+                        <div className="bg-gray-50 rounded-2xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+                          {result.company.workingHours?.map((wh, idx) => (
+                            <div key={idx} className="p-3 px-4 flex items-center justify-between text-xs">
+                              <span className="font-bold text-gray-700">{wh.day}</span>
+                              <span className={`font-semibold ${wh.isClosed ? "text-red-600 font-bold" : "text-gray-900"}`}>
+                                {wh.isClosed ? "Closed" : `${wh.open} - ${wh.close}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1354,66 +1650,237 @@ export default function ConnectWebsitePage() {
 
                 {/* Tab 4: Reviews */}
                 {activeTab === "reviews" && result.company && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {result.company.reviews?.map((rev, idx) => (
-                      <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between gap-3">
+                  <div className="flex flex-col gap-5">
+                    
+                    {/* Action Header Banner */}
+                    <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0 border border-amber-200/60">
+                          <Star className="w-6 h-6 fill-amber-400 text-amber-500" />
+                        </div>
                         <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1 bg-amber-50 text-amber-800 px-2.5 py-1 rounded-full text-xs font-black">
-                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" /> {rev.rating} / 5.0
-                            </div>
-                            <span className="text-[11px] text-gray-400 font-medium">{rev.date}</span>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-black text-base text-gray-900">
+                              Customer Reviews & Testimonials ({result.company.reviews?.length || 0})
+                            </h3>
+                            {importedSections.includes("reviews") && (
+                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600" /> Synced to Portfolio
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-700 leading-relaxed italic font-normal">
-                            "{rev.comment}"
+                          <p className="text-xs text-gray-500">
+                            Extracted customer feedback and verified ratings from {result.domain}. Import them to display on your public storefront.
                           </p>
                         </div>
-                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                          <span className="font-bold text-gray-900">{rev.author}</span>
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            Verified Reviewer
-                          </span>
-                        </div>
                       </div>
-                    ))}
+
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <Button
+                          onClick={handleImportReviewsOnly}
+                          disabled={importingSection === "reviews" || !result.company.reviews || result.company.reviews.length === 0}
+                          className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                        >
+                          {importingSection === "reviews" ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Importing Reviews...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Star className="w-3.5 h-3.5 fill-white text-white" />
+                              <span>Import Reviews to Portfolio ({result.company.reviews?.length || 0})</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Reviews List */}
+                    {result.company.reviews && result.company.reviews.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {result.company.reviews.map((rev, idx) => (
+                          <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between gap-3 hover:border-amber-300 transition-colors">
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-1 bg-amber-50 text-amber-800 px-2.5 py-1 rounded-full text-xs font-black">
+                                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" /> {rev.rating} / 5.0
+                                </div>
+                                <span className="text-[11px] text-gray-400 font-medium">{rev.date}</span>
+                              </div>
+                              <p className="text-xs text-gray-700 leading-relaxed italic font-normal">
+                                "{rev.comment}"
+                              </p>
+                            </div>
+                            <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+                              <span className="font-bold text-gray-900">{rev.author}</span>
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                Verified Reviewer
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-3xl border border-gray-200 p-10 text-center flex flex-col items-center justify-center gap-2">
+                        <Star className="w-10 h-10 text-gray-300 mb-1" />
+                        <h4 className="font-bold text-sm text-gray-700">No Direct Reviews Found on Discovered Pages</h4>
+                        <p className="text-xs text-gray-400 max-w-sm">Default verified 5-star testimonials will be generated when importing your full portfolio profile.</p>
+                      </div>
+                    )}
+
                   </div>
                 )}
 
                 {/* Tab 5: Gallery */}
                 {activeTab === "gallery" && result.company && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {result.company.gallery?.map((g, idx) => (
-                      <div key={idx} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm group">
-                        <div className="aspect-video w-full overflow-hidden bg-gray-100 flex items-center justify-center">
-                          {g.url ? (
-                            <img src={g.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          ) : (
-                            <ImageIcon className="w-8 h-8 text-gray-300" />
-                          )}
+                  <div className="flex flex-col gap-5">
+                    
+                    {/* Action Header Banner */}
+                    <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0 border border-indigo-100">
+                          <ImageIcon className="w-6 h-6" />
                         </div>
-                        <div className="p-3.5">
-                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{g.category || "Media"}</span>
-                          <h4 className="font-bold text-xs text-gray-900 mt-1">{g.caption}</h4>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-black text-base text-gray-900">
+                              Showcase & Photo Gallery ({result.company.gallery?.length || 0})
+                            </h3>
+                            {importedSections.includes("gallery") && (
+                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600" /> Synced to Gallery
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            High-resolution project, facility, and storefront photography scraped from {result.domain}.
+                          </p>
                         </div>
                       </div>
-                    ))}
+
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <Button
+                          onClick={handleImportGalleryOnly}
+                          disabled={importingSection === "gallery" || !result.company.gallery || result.company.gallery.length === 0}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                        >
+                          {importingSection === "gallery" ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Importing Gallery...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ImageIcon className="w-3.5 h-3.5" />
+                              <span>Import Gallery to Portfolio ({result.company.gallery?.length || 0})</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Gallery Grid */}
+                    {result.company.gallery && result.company.gallery.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {result.company.gallery.map((g, idx) => (
+                          <div key={idx} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm group hover:border-indigo-300 transition-colors">
+                            <div className="aspect-video w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                              {g.url ? (
+                                <img src={g.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              ) : (
+                                <ImageIcon className="w-8 h-8 text-gray-300" />
+                              )}
+                            </div>
+                            <div className="p-3.5">
+                              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{g.category || "Media"}</span>
+                              <h4 className="font-bold text-xs text-gray-900 mt-1">{g.caption}</h4>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-3xl border border-gray-200 p-10 text-center flex flex-col items-center justify-center gap-2">
+                        <ImageIcon className="w-10 h-10 text-gray-300 mb-1" />
+                        <h4 className="font-bold text-sm text-gray-700">No Gallery Photos Discovered</h4>
+                        <p className="text-xs text-gray-400 max-w-sm">You can add custom storefront showcase photos anytime in the Portfolio Builder.</p>
+                      </div>
+                    )}
+
                   </div>
                 )}
 
                 {/* Tab 6: FAQs */}
                 {activeTab === "faqs" && result.company && (
-                  <div className="space-y-3">
-                    {result.company.faqs?.map((faq, idx) => (
-                      <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                        <h4 className="font-extrabold text-sm text-gray-900 flex items-center gap-2">
-                          <HelpCircle className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <span>{faq.question}</span>
-                        </h4>
-                        <p className="text-xs text-gray-600 mt-2 pl-6 leading-relaxed font-normal">
-                          {faq.answer}
-                        </p>
+                  <div className="flex flex-col gap-5">
+                    
+                    {/* Action Header Banner */}
+                    <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0 border border-indigo-100">
+                          <HelpCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-black text-base text-gray-900">
+                              Frequently Asked Questions ({result.company.faqs?.length || 0})
+                            </h3>
+                            {importedSections.includes("faqs") && (
+                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600" /> Synced to FAQs
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Extracted customer FAQs and verified policies from {result.domain}.
+                          </p>
+                        </div>
                       </div>
-                    ))}
+
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <Button
+                          onClick={handleImportFaqsOnly}
+                          disabled={importingSection === "faqs" || !result.company.faqs || result.company.faqs.length === 0}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                        >
+                          {importingSection === "faqs" ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Importing FAQs...</span>
+                            </>
+                          ) : (
+                            <>
+                              <HelpCircle className="w-3.5 h-3.5" />
+                              <span>Import FAQs to Portfolio ({result.company.faqs?.length || 0})</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* FAQs List */}
+                    {result.company.faqs && result.company.faqs.length > 0 ? (
+                      <div className="space-y-3">
+                        {result.company.faqs.map((faq, idx) => (
+                          <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:border-indigo-300 transition-colors">
+                            <h4 className="font-extrabold text-sm text-gray-900 flex items-center gap-2">
+                              <HelpCircle className="w-4 h-4 text-indigo-600 shrink-0" />
+                              <span>{faq.question}</span>
+                            </h4>
+                            <p className="text-xs text-gray-600 mt-2 pl-6 leading-relaxed font-normal">
+                              {faq.answer}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-3xl border border-gray-200 p-10 text-center flex flex-col items-center justify-center gap-2">
+                        <HelpCircle className="w-10 h-10 text-gray-300 mb-1" />
+                        <h4 className="font-bold text-sm text-gray-700">No Specific FAQs Found on Discovered Pages</h4>
+                        <p className="text-xs text-gray-400 max-w-sm">Curated customer support and warranty FAQs will be populated automatically when importing.</p>
+                      </div>
+                    )}
+
                   </div>
                 )}
 

@@ -5,6 +5,7 @@ import clientPromise from "./mongodb";
 import { ObjectId } from "mongodb";
 import { refineCompanyExtractionWithGemini } from "./gemini";
 import { getCurrentUserSession } from "./auth-actions";
+import { isValidProductImage, getCategoryFallbackImage } from "./image-extractor";
 // No-op revalidatePath for CLI environments
 let revalidatePath = (path: string) => {};
 
