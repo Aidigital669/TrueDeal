@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { 
   ShoppingBag, Wrench, Building, ArrowRight, ArrowLeft, Save, 
   CheckCircle2, Sparkles, AlertTriangle, UploadCloud, ChevronDown, 
-  ChevronRight, Globe, Search, LayoutTemplate, ShieldCheck, Database, Loader2, Plus
+  ChevronRight, Globe, Search, LayoutTemplate, ShieldCheck, Database, Loader2, Plus, Package
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProductById, saveProduct } from "../actions";
@@ -395,11 +395,15 @@ function AddProductWizard() {
         <div className="flex flex-col gap-4 items-center">
           <span className="text-xs font-extrabold text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Standard Listing</span>
           <div className="w-full max-w-[320px] bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            <div className="h-48 bg-gray-100 relative">
-              <img src={formData.image} alt="Laptop" className="w-full h-full object-cover mix-blend-multiply p-4" />
+            <div className="h-48 bg-gray-100 relative flex items-center justify-center">
+              {formData.image ? (
+                <img src={formData.image} alt="Product Preview" className="w-full h-full object-cover mix-blend-multiply p-4" />
+              ) : (
+                <Package className="w-12 h-12 text-gray-300" />
+              )}
             </div>
             <div className="p-5">
-              <h3 className="font-bold text-gray-900 text-lg mb-1">{formData.name || "ASUS TUF Gaming Laptop"}</h3>
+              <h3 className="font-bold text-gray-900 text-lg mb-1">{formData.name || "Product Title"}</h3>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl font-black text-gray-900">₹{parseFloat(formData.price || "0").toLocaleString("en-IN")}</span>
                 {formData.originalPrice && <span className="text-sm text-gray-400 line-through">₹{parseFloat(formData.originalPrice || "0").toLocaleString("en-IN")}</span>}
@@ -421,8 +425,12 @@ function AddProductWizard() {
             </div>
             
             <div className="flex items-start gap-4 mb-4">
-              <div className="w-16 h-16 rounded-lg bg-white border border-gray-100 p-1 flex-shrink-0">
-                <img src={formData.image} alt="Laptop" className="w-full h-full object-contain" />
+              <div className="w-16 h-16 rounded-lg bg-white border border-gray-100 p-1 flex-shrink-0 flex items-center justify-center">
+                {formData.image ? (
+                  <img src={formData.image} alt="Product Preview" className="w-full h-full object-contain" />
+                ) : (
+                  <Package className="w-8 h-8 text-gray-300" />
+                )}
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 text-[15px] leading-tight mb-1">{formData.name || "ASUS TUF Gaming Laptop"}</h3>
@@ -762,12 +770,18 @@ function AddProductWizard() {
         />
       </div>
       <div className="flex items-center gap-4">
-        <div className="w-24 h-24 rounded-lg bg-gray-100 border border-gray-200 p-1">
-          <img src={formData.image} alt="Thumb" className="w-full h-full object-contain rounded" />
+        <div className="w-24 h-24 rounded-lg bg-gray-100 border border-gray-200 p-1 flex items-center justify-center overflow-hidden">
+          {formData.image ? (
+            <img src={formData.image} alt="Thumb" className="w-full h-full object-contain rounded" />
+          ) : (
+            <Package className="w-8 h-8 text-gray-300" />
+          )}
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-bold text-gray-900 truncate max-w-[200px]">{formData.image.substring(formData.image.lastIndexOf('/') + 1) || "main_product_front.jpg"}</span>
-          <span className="text-xs text-gray-500">Remote URL Connected</span>
+          <span className="text-sm font-bold text-gray-900 truncate max-w-[200px]">
+            {formData.image ? (formData.image.substring(formData.image.lastIndexOf('/') + 1) || "image.jpg") : "No image selected"}
+          </span>
+          <span className="text-xs text-gray-500">{formData.image ? "Remote URL Connected" : "Please provide image URL"}</span>
           <button className="text-xs font-bold text-[#4F46E5] hover:underline self-start flex items-center gap-1 mt-1">
             <Sparkles className="w-3 h-3" /> Generate Alt Text
           </button>

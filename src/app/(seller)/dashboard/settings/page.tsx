@@ -287,7 +287,11 @@ export default function SettingsPage() {
                 {/* Avatar Section */}
                 <div className="flex flex-wrap items-center gap-6 mb-8 p-4 rounded-2xl bg-gray-50/70 border border-gray-100">
                   <div className="relative w-20 h-20 rounded-2xl bg-white border-2 border-indigo-200 shadow-sm flex items-center justify-center overflow-hidden flex-shrink-0 group">
-                    <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    {avatar ? (
+                      <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-8 h-8 text-indigo-400" />
+                    )}
                     <button 
                       type="button"
                       onClick={() => fileInputRef.current?.click()}

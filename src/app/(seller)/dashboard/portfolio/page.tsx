@@ -451,11 +451,15 @@ export default function PortfolioBuilderPage() {
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Company Logo URL</label>
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl border-2 border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center flex-shrink-0 shadow-inner">
-                    <img src={portfolio.logo} alt="Logo" className="w-full h-full object-cover" />
+                    {portfolio.logo ? (
+                      <img src={portfolio.logo} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <Building2 className="w-7 h-7 text-gray-400" />
+                    )}
                   </div>
                   <input 
                     type="text" 
-                    value={portfolio.logo} 
+                    value={portfolio.logo || ""} 
                     onChange={(e) => updateField("logo", e.target.value)}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none" 
                     placeholder="https://..."
@@ -466,12 +470,19 @@ export default function PortfolioBuilderPage() {
               {/* Banner */}
               <div className="flex flex-col gap-3">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Cover Banner Image URL</label>
-                <div className="w-full h-28 rounded-2xl border-2 border-gray-200 overflow-hidden bg-gray-50 relative shadow-inner">
-                  <img src={portfolio.bannerImage} alt="Banner" className="w-full h-full object-cover" />
+                <div className="w-full h-28 rounded-2xl border-2 border-gray-200 overflow-hidden bg-gray-50 relative shadow-inner flex items-center justify-center">
+                  {portfolio.bannerImage ? (
+                    <img src={portfolio.bannerImage} alt="Banner" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                      <Image className="w-4 h-4 text-gray-400" />
+                      <span>No banner image URL set</span>
+                    </div>
+                  )}
                 </div>
                 <input 
                   type="text" 
-                  value={portfolio.bannerImage} 
+                  value={portfolio.bannerImage || ""} 
                   onChange={(e) => updateField("bannerImage", e.target.value)}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none" 
                   placeholder="https://..."
@@ -826,7 +837,11 @@ export default function PortfolioBuilderPage() {
             {catalogProducts.map((prod, idx) => (
               <div key={prod.id || `prod-${idx}`} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
                 <div className="h-44 bg-gray-50 relative overflow-hidden flex items-center justify-center p-3">
-                  <img src={prod.image} alt={prod.name} className="w-full h-full object-contain" />
+                  {prod.image ? (
+                    <img src={prod.image} alt={prod.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <Package className="w-10 h-10 text-gray-300" />
+                  )}
                   <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-extrabold text-gray-700 shadow-sm border border-gray-100">
                     {prod.category || "Electronics"}
                   </span>
@@ -982,8 +997,12 @@ export default function PortfolioBuilderPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {portfolio.gallery.map((item, idx) => (
               <div key={item.id || `gal-${idx}`} className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden flex flex-col group shadow-sm">
-                <div className="h-44 relative bg-gray-200 overflow-hidden">
-                  <img src={item.url} alt={item.caption} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                <div className="h-44 relative bg-gray-200 overflow-hidden flex items-center justify-center">
+                  {item.url ? (
+                    <img src={item.url} alt={item.caption || "Gallery"} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  ) : (
+                    <Image className="w-8 h-8 text-gray-400" />
+                  )}
                   <button onClick={() => removeGalleryImage(item.id)} className="absolute top-3 right-3 bg-red-600 text-white p-1.5 rounded-full opacity-90 hover:opacity-100 shadow-md">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Sparkles, Globe, Store, Pencil, Trash2, Plus, ArrowDownToLine, Loader2, Inbox } from "lucide-react";
+import { Search, Sparkles, Globe, Store, Pencil, Trash2, Plus, ArrowDownToLine, Loader2, Inbox, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getProducts, deleteProduct, clearAllProductsAction } from "./actions";
@@ -329,7 +329,7 @@ function ProductRow({ id, name, image, badgeType, category, price, stock, status
           {image ? (
             <img src={image} alt={name} className="w-full h-full object-contain mix-blend-multiply" />
           ) : (
-            <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-400 rounded-full animate-spin"></div>
+            <Package className="w-6 h-6 text-gray-400" />
           )}
         </div>
         <div className="flex flex-col gap-1.5 overflow-hidden">

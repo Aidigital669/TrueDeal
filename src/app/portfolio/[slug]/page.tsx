@@ -581,9 +581,9 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
                 <p className="text-xs text-gray-500 mb-4">Experience center, project sites, and corporate facilities.</p>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {portfolio.gallery.map((img) => (
+                  {portfolio.gallery.filter((img) => Boolean(img && img.url)).map((img) => (
                     <div key={img.id} className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                      <img src={img.url} alt={img.caption} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img src={img.url} alt={img.caption || "Gallery"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-end">
                         <span className="text-[11px] font-bold text-white leading-tight">{img.caption}</span>
                       </div>
