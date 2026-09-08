@@ -1,12 +1,12 @@
 "use server";
 
-import clientPromise from "../../../../lib/mongodb";
+import clientPromise, { getDb, getSellerProductsCollection, getSellerProductCollectionName, cleanSellerSlug } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserSession } from "@/lib/auth-actions";
 import { getCategoryFallbackImage } from "@/lib/image-extractor";
 
-// Seller-scoped In-Memory product registry (keyed by sellerId or sellerSlug)
+// Seller-scoped In-Memory product registry (keyed by sellerSlug or sellerId)
 const LOCAL_IMPORTED_PRODUCTS_MAP = new Map<string, any[]>();
 
 export async function getLocalImportedProducts(sellerKey?: string) {
@@ -39,20 +39,15 @@ function safeObjectId(id: any): ObjectId | null {
 }
 
 /**
- * Seed default products for a specific seller if their catalog is empty.
+ * Seed default products for a specific seller if their dedicated collection is empty.
  */
 export async function seedDefaultProducts() {
   try {
-    const client = await clientPromise;
-    const db = client.db();
     const session = await getCurrentUserSession();
-    
-    if (session?.slug === "anv-reealty" || session?.email === "contact@anvreealty.com") {
-      // ANV REEALTY catalog is seeded through live crawler or real listings
-      return { success: true, seeded: false };
-    }
+    const slug = session?.slug || "seller-store";
+    const col = await getSellerProductsCollection(slug);
 
-    const productCount = await db.collection("products").countDocuments();
+    const productCount = await col.countDocuments();
     if (productCount > 0) {
       return { success: true, seeded: false };
     }
@@ -65,41 +60,23 @@ export async function seedDefaultProducts() {
 }
 
 /**
- * Delete all products for the CURRENT LOGGED-IN SELLER only from DB & local memory.
+ * Delete all products for the CURRENT LOGGED-IN SELLER only from their isolated collection & memory.
  */
 export async function clearAllProductsAction() {
   try {
     const session = await getCurrentUserSession();
-    const key = session?.slug || session?.userId || "global";
+    const slug = session?.slug || "seller-store";
+    const key = slug || session?.userId || "global";
     LOCAL_IMPORTED_PRODUCTS_MAP.delete(key);
 
     try {
-      const client = await clientPromise;
-      const db = client.db();
+      const col = await getSellerProductsCollection(slug);
+      await col.deleteMany({});
+      console.log(`Cleared all products in collection "${col.collectionName}" for seller "${slug}".`);
+    } catch (err: any) {
+      console.warn("Notice clearing collection:", err.message);
+    }
 
-      if (session?.slug === "anv-reealty" || session?.email === "contact@anvreealty.com") {
-        await db.collection("products").deleteMany({
-          $or: [
-            { sellerSlug: "anv-reealty" },
-            { brand: { $regex: "ANV", $options: "i" } },
-            { sourceUrl: { $regex: "anvreealty|anvrealty", $options: "i" } }
-          ]
-        });
-      } else if (session?.userId) {
-        const userObjId = safeObjectId(session.userId);
-        const seller = userObjId ? await db.collection("sellers").findOne({ userId: userObjId }) : null;
-        const sellerFilter: any = {
-          $or: [
-            { sellerSlug: session.slug },
-            { brand: session.storeName }
-          ]
-        };
-        if (seller?._id) {
-          sellerFilter.$or.push({ sellerId: seller._id });
-        }
-        await db.collection("products").deleteMany(sellerFilter);
-      }
-    } catch {}
     revalidatePath("/dashboard/catalog");
     revalidatePath("/dashboard");
     return { success: true };
@@ -109,7 +86,7 @@ export async function clearAllProductsAction() {
 }
 
 /**
- * Get list of products based on query options with strict seller data isolation.
+ * Get list of products for the active seller from their dedicated collection.
  */
 export async function getProducts(options: {
   search?: string;
@@ -129,86 +106,65 @@ export async function getProducts(options: {
 
     const session = await getCurrentUserSession();
     const isAnv = session?.slug === "anv-reealty" || session?.email === "contact@anvreealty.com" || session?.storeName?.includes("ANV");
-    const sellerKey = session?.slug || session?.userId || (isAnv ? "anv-reealty" : "global");
+    const isAyurmor = session?.slug === "ayurmor-more" || session?.email?.includes("ayurmor") || session?.storeName?.includes("Ayurmor");
+
+    const sellerSlug = session?.slug || (isAnv ? "anvreeality" : isAyurmor ? "ayurmor-more" : "seller-store");
+    const sellerKey = sellerSlug;
 
     try {
-      const client = await clientPromise;
-      if (client) {
-        const db = client.db();
-        const andClauses: any[] = [];
+      const col = await getSellerProductsCollection(sellerSlug);
+      const andClauses: any[] = [];
 
-        // 1. Strict Multi-Tenant Seller Filter
-        if (isAnv) {
-          andClauses.push({
-            $or: [
-              { sellerSlug: "anv-reealty" },
-              { brand: { $regex: "ANV", $options: "i" } },
-              { sourceUrl: { $regex: "anvreealty|anvrealty", $options: "i" } }
-            ]
-          });
-        } else if (session?.userId) {
-          const userObjId = safeObjectId(session.userId);
-          const seller = userObjId ? await db.collection("sellers").findOne({ userId: userObjId }) : null;
-          const sellerConditions: any[] = [
-            { sellerSlug: session.slug },
-            { brand: session.storeName }
-          ];
-          if (seller?._id) {
-            sellerConditions.push({ sellerId: seller._id });
-          }
-          andClauses.push({ $or: sellerConditions });
-        }
-
-        // 2. Inventory / Status filter
-        if (filter === "Active") {
-          andClauses.push({ isActive: true, inventory: { $gt: 0 } });
-        } else if (filter === "Draft") {
-          andClauses.push({ isActive: false });
-        } else if (filter === "Out of Stock") {
-          andClauses.push({ isActive: true, inventory: { $lte: 0 } });
-        }
-
-        // 3. Search filter
-        if (search) {
-          const searchRegex = { $regex: search, $options: "i" };
-          andClauses.push({
-            $or: [
-              { title: searchRegex },
-              { brand: searchRegex },
-              { modelName: searchRegex },
-              { shortDesc: searchRegex }
-            ]
-          });
-        }
-
-        const whereClause = andClauses.length > 0 ? { $and: andClauses } : {};
-
-        const pipeline: any[] = [
-          { $match: whereClause },
-          { $sort: { updatedAt: -1 } },
-          { $skip: skip },
-          { $limit: limit },
-          {
-            $lookup: {
-              from: "categories",
-              localField: "categoryId",
-              foreignField: "_id",
-              as: "categoryDoc"
-            }
-          },
-          {
-            $unwind: {
-              path: "$categoryDoc",
-              preserveNullAndEmptyArrays: true
-            }
-          }
-        ];
-
-        [dbProducts, totalCount] = await Promise.all([
-          db.collection("products").aggregate(pipeline).toArray(),
-          db.collection("products").countDocuments(whereClause)
-        ]);
+      // 1. Inventory / Status filter
+      if (filter === "Active") {
+        andClauses.push({ isActive: true, inventory: { $gt: 0 } });
+      } else if (filter === "Draft") {
+        andClauses.push({ isActive: false });
+      } else if (filter === "Out of Stock") {
+        andClauses.push({ isActive: true, inventory: { $lte: 0 } });
       }
+
+      // 2. Search filter
+      if (search) {
+        const searchRegex = { $regex: search, $options: "i" };
+        andClauses.push({
+          $or: [
+            { title: searchRegex },
+            { name: searchRegex },
+            { brand: searchRegex },
+            { modelName: searchRegex },
+            { shortDesc: searchRegex }
+          ]
+        });
+      }
+
+      const whereClause = andClauses.length > 0 ? { $and: andClauses } : {};
+
+      const pipeline: any[] = [
+        { $match: whereClause },
+        { $sort: { updatedAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "categoryId",
+            foreignField: "_id",
+            as: "categoryDoc"
+          }
+        },
+        {
+          $unwind: {
+            path: "$categoryDoc",
+            preserveNullAndEmptyArrays: true
+          }
+        }
+      ];
+
+      [dbProducts, totalCount] = await Promise.all([
+        col.aggregate(pipeline).toArray(),
+        col.countDocuments(whereClause)
+      ]);
     } catch (dbErr) {
       console.warn("DB read notice (falling back to memory registry):", dbErr);
     }
@@ -217,12 +173,8 @@ export async function getProducts(options: {
     const productMap = new Map<string, any>();
     const seenTitles = new Set<string>();
 
-    // 1. Prioritize MongoDB database records
+    // 1. Prioritize MongoDB database records from dedicated collection
     dbProducts.forEach(p => {
-      if (isAnv) {
-        const brandStr = (p.brand || "").toLowerCase();
-        if (brandStr.includes("abc electronics") || brandStr.includes("tissuekart")) return;
-      }
       const titleKey = (p.title || p.name || "").trim().toLowerCase();
       const pId = p._id ? p._id.toString() : p.id;
       if (titleKey) seenTitles.add(titleKey);
@@ -231,16 +183,12 @@ export async function getProducts(options: {
       }
     });
 
-    // 2. Add local memory registry items only if not already present in database
+    // 2. Add local memory registry items only if not already present
     const scopedLocalProducts = LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
     scopedLocalProducts.forEach(p => {
-      if (isAnv) {
-        const brandStr = (p.brand || "").toLowerCase();
-        if (brandStr.includes("abc electronics") || brandStr.includes("tissuekart")) return;
-      }
       const titleKey = (p.title || p.name || "").trim().toLowerCase();
       const pId = p._id ? p._id.toString() : p.id;
-      if (titleKey && seenTitles.has(titleKey)) return; // Prevent duplicate
+      if (titleKey && seenTitles.has(titleKey)) return;
       if (pId && !productMap.has(pId)) {
         if (titleKey) seenTitles.add(titleKey);
         productMap.set(pId, p);
@@ -299,7 +247,7 @@ export async function getProducts(options: {
         updated: "Just now",
         attention: inv <= 0,
         sparkles: (p.aiVisibility || 95) >= 90,
-        sourceUrl: p.sourceUrl || ""
+        sourceUrl: p.sourceUrl || p.buyUrl || p.productUrl || ""
       };
     });
 
@@ -318,12 +266,13 @@ export async function getProducts(options: {
 }
 
 /**
- * Get a single product by ID.
+ * Get a single product by ID from seller's dedicated collection.
  */
 export async function getProductById(id: string) {
   try {
     const session = await getCurrentUserSession();
-    const sellerKey = session?.slug || session?.userId || "global";
+    const slug = session?.slug || "seller-store";
+    const sellerKey = slug;
     const localList = LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
     const localMatch = localList.find(p => p.id === id || p._id?.toString() === id);
 
@@ -355,17 +304,17 @@ export async function getProductById(id: string) {
       };
     }
 
-    const client = await clientPromise;
-    const db = client.db();
+    const col = await getSellerProductsCollection(slug);
+    const db = await getDb();
 
     const objId = safeObjectId(id);
-    const product = objId ? await db.collection("products").findOne({ _id: objId }) : null;
+    const product = objId ? await col.findOne({ _id: objId }) : await col.findOne({ id });
     if (!product) {
       return { success: false, error: "Product not found" };
     }
 
     const category = product.categoryId ? await db.collection("categories").findOne({ _id: product.categoryId }) : null;
-    const categoryName = category ? category.name : "General Merchandise";
+    const categoryName = category ? category.name : (product.category || "General Merchandise");
     const primaryImage = product.images?.find((img: any) => img.isPrimary)?.url || product.images?.[0]?.url || "";
 
     return {
@@ -399,14 +348,14 @@ export async function getProductById(id: string) {
 }
 
 /**
- * Save / update product with seller isolation.
+ * Save / update product into seller's dedicated collection.
  */
 export async function saveProduct(data: any, id?: string) {
   try {
     const session = await getCurrentUserSession();
     const isAnv = session?.slug === "anv-reealty" || session?.email === "contact@anvreealty.com";
-    const sellerKey = session?.slug || session?.userId || (isAnv ? "anv-reealty" : "global");
-    const sellerSlug = session?.slug || (isAnv ? "anv-reealty" : "seller-store");
+    const sellerSlug = session?.slug || (isAnv ? "anvreeality" : "seller-store");
+    const sellerKey = sellerSlug;
     const sellerBrand = data.brand || session?.storeName || (isAnv ? "ANV REEALTY" : "Verified Merchant");
 
     const price = parseFloat(data.price || "0");
@@ -428,6 +377,7 @@ export async function saveProduct(data: any, id?: string) {
       inventory,
       brand: sellerBrand,
       sellerSlug,
+      portfolioSlug: sellerSlug,
       modelName: data.model || null,
       sku: data.sku || `SKU-${Date.now().toString().slice(-6)}`,
       trackInventory: data.trackInventory ?? true,
@@ -458,32 +408,17 @@ export async function saveProduct(data: any, id?: string) {
     LOCAL_IMPORTED_PRODUCTS_MAP.set(sellerKey, currentList);
 
     try {
-      const client = await clientPromise;
-      if (client) {
-        const db = client.db();
-        const objId = safeObjectId(id);
+      const col = await getSellerProductsCollection(sellerSlug);
+      const objId = safeObjectId(id);
 
-        let sellerIdObj = null;
-        if (session?.userId) {
-          const userObjId = safeObjectId(session.userId);
-          if (userObjId) {
-            const sDoc = await db.collection("sellers").findOne({ userId: userObjId });
-            sellerIdObj = sDoc?._id || null;
-          }
-        }
-
-        const mongoDoc: any = {
-          ...productObj,
-          ...(sellerIdObj ? { sellerId: sellerIdObj } : {})
-        };
-
-        if (objId) {
-          await db.collection("products").updateOne({ _id: objId }, { $set: mongoDoc });
-        } else {
-          await db.collection("products").insertOne({ ...mongoDoc, createdAt: new Date() });
-        }
+      if (objId) {
+        await col.updateOne({ _id: objId }, { $set: productObj }, { upsert: true });
+      } else {
+        await col.insertOne({ ...productObj, createdAt: new Date() });
       }
-    } catch {}
+    } catch (err: any) {
+      console.error("Save product MongoDB notice:", err.message);
+    }
 
     revalidatePath("/dashboard/catalog");
     revalidatePath("/dashboard");
@@ -494,12 +429,13 @@ export async function saveProduct(data: any, id?: string) {
 }
 
 /**
- * Delete a product by ID.
+ * Delete a product by ID from seller's dedicated collection.
  */
 export async function deleteProduct(id: string) {
   try {
     const session = await getCurrentUserSession();
-    const sellerKey = session?.slug || session?.userId || "global";
+    const sellerSlug = session?.slug || "seller-store";
+    const sellerKey = sellerSlug;
 
     // 1. Remove from local memory registry
     const currentList = LOCAL_IMPORTED_PRODUCTS_MAP.get(sellerKey) || [];
@@ -516,24 +452,23 @@ export async function deleteProduct(id: string) {
     }
     LOCAL_IMPORTED_PRODUCTS_MAP.set(sellerKey, currentList);
 
-    // 2. Remove from MongoDB collection
+    // 2. Remove from dedicated MongoDB collection
     try {
-      const client = await clientPromise;
-      if (client) {
-        const db = client.db();
-        const objId = safeObjectId(id);
-        const deleteFilter: any = {
-          $or: [
-            { id: id },
-            { _id: id }
-          ]
-        };
-        if (objId) {
-          deleteFilter.$or.push({ _id: objId });
-        }
-        await db.collection("products").deleteMany(deleteFilter);
+      const col = await getSellerProductsCollection(sellerSlug);
+      const objId = safeObjectId(id);
+      const deleteFilter: any = {
+        $or: [
+          { id: id },
+          { _id: id }
+        ]
+      };
+      if (objId) {
+        deleteFilter.$or.push({ _id: objId });
       }
-    } catch {}
+      await col.deleteMany(deleteFilter);
+    } catch (err: any) {
+      console.error("Delete product MongoDB notice:", err.message);
+    }
 
     revalidatePath("/dashboard/catalog");
     revalidatePath("/dashboard");
@@ -543,8 +478,60 @@ export async function deleteProduct(id: string) {
   }
 }
 
+function resolveDynamicSellerSlug(
+  sessionSlug?: string,
+  sourceUrl?: string,
+  brand?: string,
+  explicitSlug?: string
+): string {
+  if (explicitSlug && explicitSlug !== "seller-store" && explicitSlug !== "default") {
+    return cleanSellerSlug(explicitSlug);
+  }
+  if (sessionSlug && sessionSlug !== "seller-store" && sessionSlug !== "default") {
+    return cleanSellerSlug(sessionSlug);
+  }
+  const text = `${sourceUrl || ""} ${brand || ""}`.toLowerCase();
+  if (text.includes("pureplush") || text.includes("pureplus")) {
+    return "pureplush";
+  }
+  if (text.includes("ayurmor") || text.includes("saish")) {
+    return "ayurmor-more";
+  }
+  if (text.includes("anvreealty") || text.includes("anvrealty") || text.includes("anv")) {
+    return "anvreeality";
+  }
+  if (sourceUrl) {
+    try {
+      const host = new URL(sourceUrl).hostname.replace(/^www\./, "");
+      const brandPart = host.split(".")[0];
+      if (brandPart && brandPart.length >= 3) {
+        return cleanSellerSlug(brandPart);
+      }
+    } catch {}
+  }
+  return "seller-store";
+}
+
+function resolveDynamicBrand(
+  sessionBrand?: string,
+  productBrand?: string,
+  sellerSlug?: string
+): string {
+  if (productBrand && productBrand !== "TrueDeal Verified" && productBrand !== "Website Offering") {
+    return productBrand;
+  }
+  if (sessionBrand && sessionBrand !== "TrueDeal Verified") {
+    return sessionBrand;
+  }
+  const s = (sellerSlug || "").toLowerCase();
+  if (s.includes("pureplush") || s.includes("pureplus")) return "Pureplush";
+  if (s.includes("ayurmor")) return "Ayurmor (Saish Technofarms)";
+  if (s.includes("anv")) return "ANV REEALTY";
+  return "TrueDeal Verified";
+}
+
 /**
- * Import a scraped product directly into catalog with seller isolation.
+ * Import a scraped product directly into seller's dedicated collection.
  */
 export async function importScrapedProductAction(productData: {
   title: string;
@@ -564,13 +551,21 @@ export async function importScrapedProductAction(productData: {
   aiKeywords?: string[];
   aiVisibility?: number;
   sourceUrl?: string;
+  buyUrl?: string;
+  productUrl?: string;
+  sellerSlug?: string;
+  portfolioSlug?: string;
 }) {
   try {
     const session = await getCurrentUserSession();
-    const isAnv = session?.slug === "anv-reealty" || session?.email === "contact@anvreealty.com" || productData.sourceUrl?.includes("anvreealty") || productData.sourceUrl?.includes("anvrealty");
-    const sellerKey = session?.slug || (isAnv ? "anv-reealty" : "global");
-    const sellerSlug = session?.slug || (isAnv ? "anv-reealty" : "seller-store");
-    const brandName = productData.brand || session?.storeName || (isAnv ? "ANV REEALTY" : "TrueDeal Verified");
+    const sellerSlug = resolveDynamicSellerSlug(
+      session?.slug,
+      productData.sourceUrl || productData.buyUrl || productData.productUrl,
+      productData.brand,
+      productData.sellerSlug || productData.portfolioSlug
+    );
+    const sellerKey = sellerSlug;
+    const brandName = resolveDynamicBrand(session?.storeName, productData.brand, sellerSlug);
 
     const primaryImg = (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
       ? productData.primaryImage
@@ -592,6 +587,7 @@ export async function importScrapedProductAction(productData: {
       name: productData.title,
       brand: brandName,
       sellerSlug,
+      portfolioSlug: sellerSlug,
       modelName: productData.model || "",
       sku: productData.sku || `SKU-${Date.now().toString().slice(-6)}`,
       shortDesc: productData.shortDesc || productData.description || "",
@@ -606,11 +602,13 @@ export async function importScrapedProductAction(productData: {
       deliveryAvailable: true,
       pickupAvailable: true,
       deliveryTime: "2-4 Business Days",
-      aiKeywords: productData.aiKeywords || [productData.title],
+      aiKeywords: productData.aiKeywords || [productData.title, brandName, productData.category || "Store Item"],
       aiVisibility: aiVis,
       aiSubtext: aiVis >= 90 ? "AI Optimized & Verified" : "High Visibility",
       badgeType: "website",
-      sourceUrl: productData.sourceUrl || "",
+      sourceUrl: productData.sourceUrl || productData.buyUrl || productData.productUrl || "",
+      buyUrl: productData.buyUrl || productData.sourceUrl || productData.productUrl || "",
+      productUrl: productData.productUrl || productData.buyUrl || productData.sourceUrl || "",
       attention: inventoryCount <= 0,
       sparkles: aiVis >= 90,
       isActive: true,
@@ -626,36 +624,19 @@ export async function importScrapedProductAction(productData: {
     currentList.unshift(doc);
     LOCAL_IMPORTED_PRODUCTS_MAP.set(sellerKey, currentList);
 
-    // 2. Persist to MongoDB Atlas with Upsert
+    // 2. Persist to dedicated collection in MongoDB
     try {
-      const client = await clientPromise;
-      if (client) {
-        const db = client.db();
-        
-        let sellerIdObj = null;
-        if (session?.userId) {
-          const userObjId = safeObjectId(session.userId);
-          if (userObjId) {
-            const sDoc = await db.collection("sellers").findOne({ userId: userObjId });
-            sellerIdObj = sDoc?._id || null;
-          }
-        }
-
-        const mongoDoc = {
-          ...doc,
-          ...(sellerIdObj ? { sellerId: sellerIdObj } : {})
-        };
-
-        await db.collection("products").updateOne(
-          { title: doc.title, sellerSlug },
-          { 
-            $set: mongoDoc,
-            $setOnInsert: { _id: new ObjectId(), createdAt: new Date() }
-          },
-          { upsert: true }
-        );
-        console.log(`Successfully upserted product "${productData.title}" for seller "${sellerSlug}" in MongoDB!`);
-      }
+      const col = await getSellerProductsCollection(sellerSlug);
+      const { createdAt, ...docWithoutCreatedAt } = doc;
+      await col.updateOne(
+        { title: doc.title },
+        { 
+          $set: { ...docWithoutCreatedAt, updatedAt: new Date() },
+          $setOnInsert: { _id: new ObjectId(), createdAt: new Date() }
+        },
+        { upsert: true }
+      );
+      console.log(`Successfully upserted product "${productData.title}" in collection "${col.collectionName}"!`);
     } catch (dbErr: any) {
       console.error("MongoDB Atlas persist notice:", dbErr.message);
     }
@@ -680,7 +661,7 @@ export async function importScrapedProductAction(productData: {
 }
 
 /**
- * Batch import an array of scraped products into catalog with seller isolation.
+ * Batch import an array of scraped products into seller's dedicated collection.
  */
 export async function importBatchScrapedProductsAction(productsList: Array<{
   title: string;
@@ -700,6 +681,11 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
   aiKeywords?: string[];
   aiVisibility?: number;
   sourceUrl?: string;
+  productUrl?: string;
+  buyUrl?: string;
+  url?: string;
+  sellerSlug?: string;
+  portfolioSlug?: string;
 }>) {
   if (!productsList || productsList.length === 0) {
     return { success: false, error: "No products provided to import", count: 0 };
@@ -707,10 +693,15 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
 
   try {
     const session = await getCurrentUserSession();
-    const isAnv = session?.slug === "anv-reealty" || session?.email === "contact@anvreealty.com" || productsList[0]?.sourceUrl?.includes("anvreealty") || productsList[0]?.sourceUrl?.includes("anvrealty");
-    const sellerKey = session?.slug || (isAnv ? "anv-reealty" : "global");
-    const sellerSlug = session?.slug || (isAnv ? "anv-reealty" : "seller-store");
-    const defaultBrand = session?.storeName || (isAnv ? "ANV REEALTY" : "TrueDeal Verified");
+    const firstItem = productsList[0];
+    const sellerSlug = resolveDynamicSellerSlug(
+      session?.slug,
+      firstItem?.sourceUrl || firstItem?.buyUrl || firstItem?.productUrl || firstItem?.url,
+      firstItem?.brand,
+      firstItem?.sellerSlug || firstItem?.portfolioSlug
+    );
+    const sellerKey = sellerSlug;
+    const defaultBrand = resolveDynamicBrand(session?.storeName, firstItem?.brand, sellerSlug);
 
     const docsToInsert = productsList.map((productData, index) => {
       const primaryImg = (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
@@ -727,12 +718,16 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
       const aiVis = productData.aiVisibility || 95;
       const productId = `imported-${Date.now()}-${index}`;
 
+      const resolvedSourceUrl = productData.sourceUrl || productData.buyUrl || productData.productUrl || productData.url || "";
+      const itemBrand = resolveDynamicBrand(defaultBrand, productData.brand, sellerSlug);
+
       return {
         id: productId,
         title: productData.title,
         name: productData.title,
-        brand: productData.brand || defaultBrand,
+        brand: itemBrand,
         sellerSlug,
+        portfolioSlug: sellerSlug,
         modelName: productData.model || "",
         sku: productData.sku || `SKU-${Math.floor(100000 + Math.random() * 900000)}`,
         shortDesc: productData.shortDesc || productData.description || "",
@@ -747,11 +742,13 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
         deliveryAvailable: true,
         pickupAvailable: true,
         deliveryTime: "2-4 Business Days",
-        aiKeywords: productData.aiKeywords || [productData.title],
+        aiKeywords: productData.aiKeywords || [productData.title, itemBrand, productData.category || "Store Product"],
         aiVisibility: aiVis,
         aiSubtext: aiVis >= 90 ? "AI Optimized & Verified" : "High Visibility",
         badgeType: "website",
-        sourceUrl: productData.sourceUrl || "",
+        sourceUrl: resolvedSourceUrl,
+        buyUrl: productData.buyUrl || resolvedSourceUrl,
+        productUrl: productData.productUrl || resolvedSourceUrl,
         attention: inventoryCount <= 0,
         sparkles: aiVis >= 90,
         isActive: true,
@@ -771,42 +768,26 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
     }
     LOCAL_IMPORTED_PRODUCTS_MAP.set(sellerKey, existingFiltered);
 
-    // 2. Persist to MongoDB Atlas with Upserts
+    // 2. Persist to dedicated collection in MongoDB
     try {
-      const client = await clientPromise;
-      if (client) {
-        const db = client.db();
-        
-        let sellerIdObj = null;
-        if (session?.userId) {
-          const userObjId = safeObjectId(session.userId);
-          if (userObjId) {
-            const sDoc = await db.collection("sellers").findOne({ userId: userObjId });
-            sellerIdObj = sDoc?._id || null;
+      const col = await getSellerProductsCollection(sellerSlug);
+      const bulkOps = docsToInsert.map(doc => {
+        const { createdAt, ...docWithoutCreatedAt } = doc;
+        return {
+          updateOne: {
+            filter: { title: doc.title },
+            update: {
+              $set: { ...docWithoutCreatedAt, updatedAt: new Date() },
+              $setOnInsert: { _id: new ObjectId(), createdAt: new Date() }
+            },
+            upsert: true
           }
-        }
+        };
+      });
 
-        const bulkOps = docsToInsert.map(doc => {
-          const mongoDoc = {
-            ...doc,
-            ...(sellerIdObj ? { sellerId: sellerIdObj } : {})
-          };
-          return {
-            updateOne: {
-              filter: { title: doc.title, sellerSlug },
-              update: {
-                $set: mongoDoc,
-                $setOnInsert: { _id: new ObjectId(), createdAt: new Date() }
-              },
-              upsert: true
-            }
-          };
-        });
-
-        if (bulkOps.length > 0) {
-          await db.collection("products").bulkWrite(bulkOps, { ordered: false });
-          console.log(`Successfully batch upserted ${bulkOps.length} products for seller "${sellerSlug}" in MongoDB!`);
-        }
+      if (bulkOps.length > 0) {
+        await col.bulkWrite(bulkOps, { ordered: false });
+        console.log(`Successfully batch upserted ${bulkOps.length} products in collection "${col.collectionName}"!`);
       }
     } catch (dbErr: any) {
       console.error("MongoDB Atlas batch persist notice:", dbErr.message);
@@ -829,5 +810,3 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
     };
   }
 }
-
-

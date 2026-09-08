@@ -61,6 +61,7 @@ export default function ConnectWebsitePage() {
   const [isImportingPortfolio, setIsImportingPortfolio] = useState(false);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [portfolioSyncMessage, setPortfolioSyncMessage] = useState<string | null>(null);
+  const [syncedPortfolioSlug, setSyncedPortfolioSlug] = useState<string | null>(null);
   const [importingSection, setImportingSection] = useState<string | null>(null);
   const [importedSections, setImportedSections] = useState<string[]>([]);
 
@@ -319,15 +320,13 @@ export default function ConnectWebsitePage() {
     setBatchImportMessage(null);
 
     try {
-      const promises: Promise<any>[] = [];
       if (result.company) {
-        promises.push(importScrapedPortfolioAction(result.company));
+        const portRes = await importScrapedPortfolioAction(result.company);
+        if (portRes?.slug) setSyncedPortfolioSlug(portRes.slug);
       }
       if (result.products && result.products.length > 0) {
-        promises.push(importBatchScrapedProductsAction(result.products));
+        await importBatchScrapedProductsAction(result.products);
       }
-
-      await Promise.all(promises);
 
       if (result.products) {
         const allIndices = result.products.map((_, i) => i);
@@ -354,6 +353,7 @@ export default function ConnectWebsitePage() {
     try {
       const res = await importScrapedPortfolioAction(result.company);
       if (res.success) {
+        if (res.slug) setSyncedPortfolioSlug(res.slug);
         setImportedSections(prev => Array.from(new Set([...prev, "portfolio", "reviews", "gallery", "faqs", "company", "contact"])));
         setPortfolioSyncMessage(res.message || "Successfully imported all reviews, gallery photos, and company profile into your portfolio!");
       } else {
@@ -1058,7 +1058,7 @@ export default function ConnectWebsitePage() {
                       )}
                     </Button>
 
-                    <Link href={`/portfolio/${result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
+                    <Link href={`/portfolio/${syncedPortfolioSlug || (result.company as any)?.slug || result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
                       <Button variant="outline" className="text-xs font-bold rounded-xl h-10 px-3.5 flex items-center gap-1.5 border-gray-200 hover:bg-gray-50 cursor-pointer">
                         <Eye className="w-3.5 h-3.5" /> Storefront ↗
                       </Button>
@@ -1091,7 +1091,7 @@ export default function ConnectWebsitePage() {
                           View in Portfolio Builder →
                         </Button>
                       </Link>
-                      <Link href={`/portfolio/${result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
+                      <Link href={`/portfolio/${syncedPortfolioSlug || (result.company as any)?.slug || result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
                         <Button variant="outline" className="border-emerald-300 text-emerald-900 hover:bg-emerald-100 text-xs font-bold rounded-xl h-9 px-3.5 cursor-pointer">
                           View Live Storefront ↗
                         </Button>

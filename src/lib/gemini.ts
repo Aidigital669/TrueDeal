@@ -4,7 +4,14 @@
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"];
+const GEMINI_MODELS = [
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-3.8-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash"
+];
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.AI_API_SECRET || "";
 
@@ -219,32 +226,41 @@ export async function generateGeminiSearchResponse(
   parsedIntent?: ParsedSearchIntent,
   companyProfile?: CompanyProfileOutput
 ): Promise<GeminiSearchOutput> {
+  const isRealEstate = candidateListings.some(l => 
+    l.category?.toLowerCase().includes("commercial") || 
+    l.category?.toLowerCase().includes("real estate") || 
+    l.title?.toLowerCase().includes("office") ||
+    l.title?.toLowerCase().includes("commercial")
+  ) || parsedIntent?.category?.toLowerCase().includes("real estate") || parsedIntent?.category?.toLowerCase().includes("commercial");
+
   let defaultSummary = "";
-  if (companyProfile) {
-    defaultSummary = `${companyProfile.name} is a verified ${companyProfile.businessType || "enterprise"}${companyProfile.ownerName ? ` managed by ${companyProfile.ownerName}` : ""}${companyProfile.city ? ` based in ${companyProfile.city}, ${companyProfile.state || ""}` : ""}. View their portfolio, website, contact channels, and ${candidateListings.length} verified listings below.`;
+  if (companyProfile && isRealEstate) {
+    defaultSummary = `Here are the verified commercial properties available from **${companyProfile.name}**${companyProfile.city ? ` in ${companyProfile.city}` : ""}:`;
+  } else if (companyProfile) {
+    defaultSummary = `Here are the verified offerings for **${companyProfile.name}**:`;
+  } else if (candidateListings.length > 0 && isRealEstate) {
+    defaultSummary = `Here are the top commercial properties in Pune matching **"${userQuery}"**:`;
   } else if (candidateListings.length > 0) {
-    defaultSummary = `Found ${candidateListings.length} matching listing${candidateListings.length === 1 ? "" : "s"} for "${userQuery}":`;
+    defaultSummary = `Here are the verified listings matching **"${userQuery}"**:`;
   } else {
-    defaultSummary = `No exact matches found for "${userQuery}". Try searching for companies like ANV REEALTY, or categories like Commercial offices in Pune, Gaming laptops, or Ayurvedic products.`;
+    defaultSummary = `I couldn't find any listings matching "${userQuery}". You can try searching for *"commercial office in Pune"* or *"Ayurmor soup"*.`;
   }
 
   const fallbackOutput: GeminiSearchOutput = {
     summaryText: defaultSummary,
     appliedFilters: companyProfile
-      ? [`🏢 ${companyProfile.name}`, ...(companyProfile.city ? [`📍 ${companyProfile.city}`] : []), "✨ Verified Profile"]
-      : (parsedIntent?.category ? [`🏷️ ${parsedIntent.category}`] : ["✨ AI Verified"]),
-    suggestedFollowUps: companyProfile
+      ? [`🏢 ${companyProfile.name}`, ...(companyProfile.city ? [`📍 ${companyProfile.city}`] : []), "✨ Verified"]
+      : (isRealEstate ? ["🏢 Commercial Real Estate", "📍 Pune", "✨ Verified"] : ["✨ Verified Catalog"]),
+    suggestedFollowUps: isRealEstate
       ? [
-          `Contact ${companyProfile.name} on WhatsApp`,
-          `View ${companyProfile.name} Portfolio Storefront`,
-          `Explore all services by ${companyProfile.name}`
+          "🏢 EON IT Park 140 Desks Office",
+          "📈 Baner Pre-Leased 7.8% ROI Showroom",
+          "💼 WTC Kharadi Executive Suite"
         ]
-      : [
-          "Commercial office in Pune, Maharashtra",
-          "Gaming laptops under ₹60,000",
-          "Organic Ayurvedic wellness products",
-          "Corporate IT & consulting services"
-        ],
+      : (companyProfile
+          ? [`Message ${companyProfile.name} on WhatsApp`, `View ${companyProfile.name} Storefront`]
+          : ["🍲 Ayurmor Moringa Soup", "🥤 Sprouted Chocolate Malt", "🏢 Commercial Offices Pune"]
+        ),
     rankedListingIds: candidateListings.map(l => l.id),
     companyProfile
   };
@@ -253,35 +269,50 @@ export async function generateGeminiSearchResponse(
     return fallbackOutput;
   }
 
-  const simplifiedListings = candidateListings.slice(0, 10).map(l => ({
+  const simplifiedListings = candidateListings.slice(0, 8).map(l => ({
     id: l.id,
     title: l.title || l.name,
     category: l.category,
     price: l.price,
+    rawPrice: l.rawPrice,
+    originalPrice: l.originalPrice,
     location: l.location,
     city: l.city,
     state: l.state,
     brand: l.brand,
-    description: (l.description || l.shortDesc || "").slice(0, 120),
-    specs: l.specs
+    description: l.description || l.shortDesc || "",
+    specs: l.specs,
+    websiteUrl: l.websiteUrl || l.productUrl || ""
   }));
 
-  const systemPrompt = `You are TrueDeal AI Assistant — an intelligent, friendly, and expert marketplace advisor for India.
-Your goal is to help buyers discover company & owner details, portfolios, websites, contact info, and their physical products, professional services, or real estate properties.
+  const systemPrompt = `You are TrueDeal AI Assistant — a friendly, helpful, and concise shopping & property advisor for India.
+Your goal is to answer the user's query in a warm, natural, human-friendly tone, keeping your reply compact and easy to read ("short & sweet").
 
-When a company or brand profile is matched, you MUST provide an authoritative summary introducing the company, its owner/leadership (if provided), its official website and portfolio, and its core services/products.
+Guidelines:
+1. Tone: Natural, friendly, human, clear, and direct. Avoid stiff corporate jargon, robotic announcements, or long walls of text.
+2. Structure (Keep it small & scannable):
+   - 1 short, friendly intro sentence acknowledging their search.
+   - 2 to 4 crisp bullet points highlighting the top options found (mention Name, Key Spec e.g. desks/sq.ft/ingredients, Price in ₹ Cr/Lakh/₹, and Location).
+   - 1 quick closing sentence inviting them to check the product cards below or reach out directly.
+3. For Commercial Real Estate:
+   - Keep details clear and brief (e.g. "• **EON IT Park, Kharadi**: 9,800 sq.ft furnished office with 140 workstations, ₹11.50 Cr").
+   - Mention key metrics like ROI (e.g. "• **Baner Showroom**: Pre-leased to bank with 7.8% Net ROI, ₹8.50 Cr").
+4. For Wellness / Products:
+   - Highlight natural benefits and prices simply.
+5. Badges: 3 to 4 short, clean visual tags with emojis (e.g. ["🏢 ANV REEALTY", "📍 Pune", "💼 Office & Retail", "📈 7.8% ROI"]).
+6. Follow-ups: 3 short, natural, clickable suggestions.
 
-Return a valid JSON object with:
+Return ONLY a valid JSON object matching:
 {
-  "summaryText": "1-2 sentences in a friendly, knowledgeable, professional tone directly answering the user query, mentioning the owner/leadership, headquarters location, website, and portfolio highlights.",
-  "appliedFilters": ["array of 2-4 visual badge tags e.g. '🏢 ANV REEALTY', '👤 Abhijit V.', '📍 Pune, MH', '⚡ RERA Verified'"],
-  "suggestedFollowUps": ["3 short, highly relevant follow-up query suggestions the user might want to click next"],
+  "summaryText": "Concise, friendly, humanized markdown text.",
+  "appliedFilters": ["3-4 short badge tags with emojis"],
+  "suggestedFollowUps": ["3 short follow-up prompts"],
   "rankedListingIds": ["ordered list of listing ids from highest relevance to lowest"]
 }`;
 
   const userPrompt = `User Query: "${userQuery}"
 ${companyProfile ? `Matched Company Profile: ${JSON.stringify(companyProfile)}` : "No specific single company profile matched."}
-Matched Listings: ${JSON.stringify(simplifiedListings)}
+Matched Database Listings: ${JSON.stringify(simplifiedListings)}
 Extracted Intent: ${JSON.stringify(parsedIntent || {})}`;
 
   try {

@@ -133,7 +133,7 @@ export default function BusinessPage() {
               <CheckCircle2 className="w-3.5 h-3.5" /> Verified Seller
             </div>
             <div className="flex flex-col gap-2.5 w-full">
-              <Link href={`/portfolio/${formData.slug}`} target="_blank" className="w-full">
+              <Link href={`/portfolio/${formData.slug}?from=dashboard`} target="_blank" className="w-full">
                 <Button className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-xl h-11 font-bold flex items-center justify-center gap-2">
                   View Public Portfolio <ExternalLink className="w-4 h-4" />
                 </Button>

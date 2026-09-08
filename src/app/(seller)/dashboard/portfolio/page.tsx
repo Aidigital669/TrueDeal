@@ -198,7 +198,7 @@ export default function PortfolioBuilderPage() {
     );
   }
 
-  const publicUrl = `/portfolio/${portfolio.slug}`;
+  const publicUrl = `/portfolio/${portfolio.slug}?from=dashboard`;
 
   return (
     <div className="flex flex-col gap-6 pb-20 font-sans">

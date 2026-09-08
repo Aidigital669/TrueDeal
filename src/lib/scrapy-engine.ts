@@ -432,7 +432,10 @@ const FRAMEWORK_JUNK_TITLES = new Set([
   "almonds & cashews", "mushroom soup ingredient", "morning drink", "evening soup",
   "family malt", "office break", "travel friendly", "priya sharma", "rahul kulkarni",
   "aisha mohammed", "suresh hegde", "family-friendly malt drinks", "real fruit & vegetable powder",
-  "how ayurmor works", "our purpose", "our products", "our quality promise", "stir well", "enjoy warm"
+  "how ayurmor works", "our purpose", "our products", "our quality promise", "stir well", "enjoy warm",
+  "ingredient selection", "gentle drying", "fine grinding", "small batch blending", "crafted with pure ingredients",
+  "shampoo bars", "handcrafted soaps", "herbal powders", "skincare & oils", "how it works", "our process",
+  "natural personal care", "solid herbal hair cleanser", "ghost-spacer"
 ]);
 
 function isFrameworkJunkTitle(title: string): boolean {
@@ -497,62 +500,95 @@ function isFrameworkJunkTitle(title: string): boolean {
                 }
               }
 
-              // Decompile catalog object blocks: {id:..., category:"...", title:"...", subtitle:"...", tagline:"...", image:"..."}
-              const productObjectRegex = /\{[^{}]*?(?:title|name|productName)\s*:\s*["']([^"']{4,120})["'][^{}]*?\}/g;
+              // Decompile catalog object blocks: {id:..., category:"...", title:"...", subtitle:"...", tagline:"...", image:"...", product_name:"...", image1:"...", etc.}
+              const productObjectRegex = /\{[^{}]*?(?:title|name|productName|product_name)\s*:\s*["']([^"']{4,120})["'][^{}]*?\}/g;
               let match;
               while ((match = productObjectRegex.exec(jsCode)) !== null) {
                 const block = match[0];
-                const rawTitleMatch = block.match(/(?:title|name|productName)\s*:\s*["']([^"']{4,120})["']/);
+                const rawTitleMatch = block.match(/(?:title|name|productName|product_name)\s*:\s*["']([^"']{4,120})["']/);
                 if (!rawTitleMatch) continue;
                 const pName = rawTitleMatch[1].trim();
 
                 if (isFrameworkJunkTitle(pName)) continue;
 
-                const subtitleMatch = block.match(/(?:subtitle|tagline|desc|description|shortDesc)\s*:\s*["']([^"']+)["']/);
+                const idMatch = block.match(/\bid\s*:\s*(\d+|["'][^"']+["'])/);
+                const pId = idMatch ? idMatch[1].replace(/["']/g, "") : "";
+
+                const subtitleMatch = block.match(/(?:product_details|brief_details|description|desc|details|subtitle|tagline|shortDesc|summary)\s*:\s*["']([^"']+)["']/);
                 const subtitle = subtitleMatch ? subtitleMatch[1] : "";
 
-                const catMatch = block.match(/(?:category|type|group)\s*:\s*["']([^"']+)["']/);
-                const pCategory = catMatch ? catMatch[1] : "Catalog Items";
+                const urlMatch = block.match(/(?:url|link|href|handle|slug|path|productUrl|itemUrl)\s*:\s*["']([^"']+)["']/);
+                let itemDirectUrl = pId ? `${origin}/product/${pId}` : currUrl;
+                if (urlMatch) {
+                  const rawU = urlMatch[1].trim();
+                  if (rawU.startsWith("http://") || rawU.startsWith("https://")) {
+                    itemDirectUrl = rawU;
+                  } else if (rawU.startsWith("/")) {
+                    itemDirectUrl = `${origin}${rawU}`;
+                  } else if (rawU.includes("/") || rawU.includes(".html")) {
+                    itemDirectUrl = `${origin}/${rawU}`;
+                  } else {
+                    itemDirectUrl = `${origin}/products/${rawU}`;
+                  }
+                }
 
-                const imgMatch = block.match(/(?:image|img|photo|src|thumbnail)\s*:\s*["']([^"']+\.(?:png|jpe?g|webp|avif))["']/i);
-                const rawImg = imgMatch ? imgMatch[1] : "";
-                let primaryImage = "";
-                if (rawImg) {
-                  primaryImage = ScrapyItemPipeline.makeAbsoluteUrl(rawImg, origin);
+                const catMatch = block.match(/(?:product_category|category|type|group)\s*:\s*["']([^"']+)["']/);
+                let pCategory = catMatch ? catMatch[1] : "Catalog Items";
+                pCategory = pCategory.charAt(0).toUpperCase() + pCategory.slice(1);
+
+                // Extract all image properties (image1, image2, image3, image, img, photo, thumbnail, src)
+                const imgMatches = Array.from(block.matchAll(/(?:image\d*|img\d*|photo\d*|src|thumbnail)\s*:\s*["']([^"']+\.(?:png|jpe?g|webp|avif))["']/gi));
+                const blockImages: string[] = [];
+                for (const im of imgMatches) {
+                  if (im[1]) {
+                    const abs = ScrapyItemPipeline.makeAbsoluteUrl(im[1], origin);
+                    if (isValidProductImage(abs)) {
+                      const upgraded = upgradeImageUrl(abs, origin);
+                      if (!blockImages.includes(upgraded)) {
+                        blockImages.push(upgraded);
+                      }
+                    }
+                  }
                 }
 
                 const priceMatch = block.match(/(?:product_price|productPrice|price|selling_price|cost|mrp|amount)\s*:\s*["']?([\d,.]+)["']?/);
                 const pPrice = priceMatch ? ScrapyItemPipeline.parsePrice(priceMatch[1]) : 0;
 
-                const hasExplicitPhoto = rawImg.length > 0 && (
-                  rawImg.includes("hero_") || 
-                  rawImg.includes("product") || 
-                  rawImg.includes("item") || 
-                  rawImg.includes("upload") || 
-                  rawImg.includes("b2bbricksblob") ||
-                  rawImg.includes("shopify") ||
-                  rawImg.includes("media")
-                );
-                const isProductCandidate = hasExplicitPhoto || pPrice > 0;
+                const origPriceMatch = block.match(/(?:original_price|originalPrice|compare_at_price|mrp)\s*:\s*["']?([\d,.]+)["']?/);
+                const pOrigPrice = origPriceMatch ? ScrapyItemPipeline.parsePrice(origPriceMatch[1]) : (pPrice > 0 ? Math.round(pPrice * 1.15) : 0);
+
+                // Extract specifications & highlights (weight, point1, point2, etc.)
+                const itemSpecs: { key: string; value: string }[] = [];
+                const weightMatch = block.match(/weight\s*:\s*["']([^"']+)["']/);
+                if (weightMatch) itemSpecs.push({ key: "Net Weight", value: weightMatch[1] });
+
+                const pointsMatches = Array.from(block.matchAll(/point\d+\s*:\s*["']([^"']+)["']/g));
+                for (const pt of pointsMatches) {
+                  if (pt[1]) itemSpecs.push({ key: "Key Highlight", value: pt[1] });
+                }
+
+                const isProductCandidate = blockImages.length > 0 || pPrice > 0;
 
                 if (isProductCandidate && !products.some(p => p.title.toLowerCase() === pName.toLowerCase())) {
-                  const finalImg = primaryImage || getCategoryFallbackImage(pCategory, pName);
+                  const finalImages = blockImages.length > 0 ? blockImages : [getCategoryFallbackImage(pCategory, pName)];
+                  const primaryImg = finalImages[0];
 
                   products.push({
-                    sourceUrl: currUrl,
+                    sourceUrl: itemDirectUrl,
                     title: pName,
-                    price: pPrice > 0 ? pPrice : 299,
-                    originalPrice: pPrice > 0 ? Math.round(pPrice * 1.15) : 349,
+                    price: pPrice > 0 ? pPrice : 249,
+                    originalPrice: pOrigPrice > 0 ? pOrigPrice : 299,
                     description: subtitle || `${pName} - Premium authentic offering from ${brandName}.`,
-                    category: pCategory.charAt(0).toUpperCase() + pCategory.slice(1),
-                    images: [finalImg],
-                    primaryImage: finalImg,
+                    category: pCategory,
+                    images: finalImages,
+                    primaryImage: primaryImg,
                     brand: brandName,
-                    sku: `SKU-${products.length + 1}`,
-                    inventory: 10,
+                    specs: itemSpecs,
+                    sku: pId ? `PP-${pId}` : `SKU-${products.length + 1}`,
+                    inventory: 15,
                     inStock: true,
                     aiKeywords: [pName, pCategory, brandName, "Verified"],
-                    aiVisibility: 97
+                    aiVisibility: 98
                   });
                   itemsOnPage++;
                 }
@@ -644,14 +680,28 @@ function isFrameworkJunkTitle(title: string): boolean {
         
         // Multi-attribute high-resolution image discovery on card
         const cardImgs: string[] = [];
-        $(el).find("img, source, [style*='background']").each((_, imgEl) => {
+        $(el).find("img, source, picture, [style*='background'], [data-bg], [data-background], [data-src], [data-image]").each((_, imgEl) => {
           const srcAttr = $(imgEl).attr("data-zoom-image") || 
+                          $(imgEl).attr("data-zoom") || 
+                          $(imgEl).attr("data-high-res-src") || 
+                          $(imgEl).attr("data-hires") || 
                           $(imgEl).attr("data-large") || 
                           $(imgEl).attr("data-large-img") || 
                           $(imgEl).attr("data-original") || 
                           $(imgEl).attr("data-src") || 
                           $(imgEl).attr("data-lazy-src") || 
+                          $(imgEl).attr("data-lazy") || 
+                          $(imgEl).attr("data-image") || 
+                          $(imgEl).attr("data-img") || 
+                          $(imgEl).attr("data-desktop-src") || 
+                          $(imgEl).attr("data-bg") || 
+                          $(imgEl).attr("data-background") || 
                           $(imgEl).attr("src");
+          
+          const styleAttr = $(imgEl).attr("style") || "";
+          const bgMatch = styleAttr.match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/i);
+          const rawCandidate = srcAttr || (bgMatch ? bgMatch[1] : "");
+
           const srcsetAttr = $(imgEl).attr("srcset") || $(imgEl).attr("data-srcset");
           if (srcsetAttr) {
             const parsed = parseSrcset(srcsetAttr, currUrl);
@@ -659,8 +709,8 @@ function isFrameworkJunkTitle(title: string): boolean {
               if (!cardImgs.includes(p)) cardImgs.push(p);
             }
           }
-          if (srcAttr && isValidProductImage(srcAttr)) {
-            const upgraded = upgradeImageUrl(makeAbsoluteUrl(srcAttr, currUrl), currUrl);
+          if (rawCandidate && isValidProductImage(rawCandidate)) {
+            const upgraded = upgradeImageUrl(makeAbsoluteUrl(rawCandidate, currUrl), currUrl);
             if (isValidProductImage(upgraded) && !cardImgs.includes(upgraded)) {
               cardImgs.push(upgraded);
             }

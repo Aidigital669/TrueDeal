@@ -1,5 +1,5 @@
 import { CheerioCrawler, Configuration } from "@crawlee/cheerio";
-import clientPromise from "./mongodb";
+import clientPromise, { getDb, getSellerProductsCollection } from "./mongodb";
 import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserSession } from "./auth-actions";
@@ -507,14 +507,28 @@ export async function runCrawleeScraper(targetUrl: string, maxPages: number = 30
           
           // Multi-attribute high-res card image extraction
           const cardImgs: string[] = [];
-          $(el).find("img, source, [style*='background']").each((_, imgEl) => {
+          $(el).find("img, source, picture, [style*='background'], [data-bg], [data-background], [data-src], [data-image]").each((_, imgEl) => {
             const srcAttr = $(imgEl).attr("data-zoom-image") || 
+                            $(imgEl).attr("data-zoom") || 
+                            $(imgEl).attr("data-high-res-src") || 
+                            $(imgEl).attr("data-hires") || 
                             $(imgEl).attr("data-large") || 
                             $(imgEl).attr("data-large-img") || 
                             $(imgEl).attr("data-original") || 
                             $(imgEl).attr("data-src") || 
                             $(imgEl).attr("data-lazy-src") || 
+                            $(imgEl).attr("data-lazy") || 
+                            $(imgEl).attr("data-image") || 
+                            $(imgEl).attr("data-img") || 
+                            $(imgEl).attr("data-desktop-src") || 
+                            $(imgEl).attr("data-bg") || 
+                            $(imgEl).attr("data-background") || 
                             $(imgEl).attr("src");
+            
+            const styleAttr = $(imgEl).attr("style") || "";
+            const bgMatch = styleAttr.match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/i);
+            const rawCandidate = srcAttr || (bgMatch ? bgMatch[1] : "");
+
             const srcsetAttr = $(imgEl).attr("srcset") || $(imgEl).attr("data-srcset");
             if (srcsetAttr) {
               const parsed = parseSrcset(srcsetAttr, request.url);
@@ -522,8 +536,8 @@ export async function runCrawleeScraper(targetUrl: string, maxPages: number = 30
                 if (!cardImgs.includes(p)) cardImgs.push(p);
               }
             }
-            if (srcAttr && isValidProductImage(srcAttr)) {
-              const upgraded = upgradeImageUrl(makeAbsoluteUrl(srcAttr, request.url), request.url);
+            if (rawCandidate && isValidProductImage(rawCandidate)) {
+              const upgraded = upgradeImageUrl(makeAbsoluteUrl(rawCandidate, request.url), request.url);
               if (isValidProductImage(upgraded) && !cardImgs.includes(upgraded)) {
                 cardImgs.push(upgraded);
               }
@@ -728,17 +742,18 @@ export async function runCrawleeScraper(targetUrl: string, maxPages: number = 30
           categoryMap[catName] = catDoc._id;
         }
       }
-      
       const categoryId = categoryMap[catName];
-
+      const productCol = await getSellerProductsCollection(sellerSlug);
       const productPayload = {
         title: p.title,
+        name: p.title,
         description: p.description,
         price: p.price,
         originalPrice: p.originalPrice,
         inventory: p.inventory,
         brand: effectiveStoreName,
         sellerSlug,
+        portfolioSlug: sellerSlug,
         sku: p.sku || `SKU-${Math.floor(Math.random() * 90000) + 10000}`,
         shortDesc: p.description.slice(0, 120),
         trackInventory: true,
@@ -753,17 +768,19 @@ export async function runCrawleeScraper(targetUrl: string, maxPages: number = 30
         sparkles: p.aiVisibility >= 95,
         isActive: true,
         sourceUrl: p.sourceUrl,
+        buyUrl: p.sourceUrl,
+        productUrl: p.sourceUrl,
         sellerId,
         categoryId,
         images: p.images.map((url, idx) => ({ url, isPrimary: idx === 0 })),
         updatedAt: new Date()
       };
        
-      await db.collection("products").updateOne(
-        { title: p.title, sellerSlug },
+      await productCol.updateOne(
+        { title: p.title },
         { 
           $set: productPayload,
-          $setOnInsert: { createdAt: new Date() }
+          $setOnInsert: { _id: new ObjectId(), createdAt: new Date() }
         },
         { upsert: true }
       );

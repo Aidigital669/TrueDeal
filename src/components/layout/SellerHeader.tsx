@@ -335,7 +335,7 @@ export default function SellerHeader({ isSidebarCollapsed = false, onToggleSideb
 
                 {/* Profile Menu Links */}
                 <Link
-                  href={`/portfolio/${portfolioSlug}`}
+                  href={`/portfolio/${portfolioSlug}?from=dashboard`}
                   target="_blank"
                   onClick={() => setProfileOpen(false)}
                   className="p-2.5 rounded-xl hover:bg-gray-100 text-xs font-semibold text-gray-700 flex items-center justify-between"
@@ -376,6 +376,14 @@ export default function SellerHeader({ isSidebarCollapsed = false, onToggleSideb
                   className="p-2.5 rounded-xl hover:bg-gray-100 text-xs font-semibold text-gray-700 flex items-center gap-2.5"
                 >
                   <Settings className="w-4 h-4 text-gray-500" /> Account Settings
+                </Link>
+
+                <Link
+                  href="/admin"
+                  onClick={() => setProfileOpen(false)}
+                  className="p-2.5 rounded-xl bg-indigo-50/80 hover:bg-indigo-100 text-xs font-bold text-indigo-700 flex items-center gap-2.5 transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" /> Master Admin Suite
                 </Link>
 
                 <div className="border-t border-gray-100 pt-1 mt-1">

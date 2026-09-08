@@ -749,15 +749,11 @@ export async function crawlFullWebsite(targetUrl: string, maxPages: number = 40)
               const priceMatch = block.match(/(?:product_price|productPrice|price|selling_price|cost|mrp|amount)\s*:\s*["']?([\d,.]+)["']?/);
               const pPrice = priceMatch ? parsePriceString(priceMatch[1]) : 0;
 
-              const hasExplicitPhoto = rawImg.length > 0 && (
-                rawImg.includes("hero_") || 
-                rawImg.includes("product") || 
-                rawImg.includes("item") || 
-                rawImg.includes("upload") || 
-                rawImg.includes("b2bbricksblob") ||
-                rawImg.includes("shopify") ||
-                rawImg.includes("media")
-              );
+              const hasExplicitPhoto = rawImg.length > 0 && 
+                !rawImg.includes("icon") && 
+                !rawImg.includes(".svg") && 
+                !rawImg.includes("facebook") &&
+                !rawImg.includes("logo");
               const isProductCandidate = hasExplicitPhoto || pPrice > 0;
 
               if (isProductCandidate && !products.some(p => p.title.toLowerCase() === pName.toLowerCase())) {

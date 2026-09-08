@@ -17,6 +17,9 @@ import { refineCompanyExtractionWithGemini } from "./gemini";
 
 export interface ScrapedProduct {
   id?: string;
+  sourceUrl?: string;
+  productUrl?: string;
+  buyUrl?: string;
   title: string;
   price: number;
   originalPrice?: number;
@@ -245,7 +248,13 @@ export async function scrapeAndImportWebsite(targetUrl: string): Promise<Scrapin
           if (Array.isArray(img)) img = img[0];
           if (typeof img === "object" && img?.url) img = img.url;
 
+          const rawItemUrl = item.url || item["@id"] || item.offers?.url || item.offers?.[0]?.url;
+          const productUrl = rawItemUrl ? makeAbsoluteUrl(String(rawItemUrl), normalized) : normalized;
+
           products.push({
+            sourceUrl: productUrl,
+            productUrl: productUrl,
+            buyUrl: productUrl,
             title: item.name || "Featured Offering",
             price: parsedPrice,
             originalPrice: Math.round(parsedPrice * 1.15),
@@ -274,6 +283,12 @@ export async function scrapeAndImportWebsite(targetUrl: string): Promise<Scrapin
       const title = $(el).find(".product-title, .property-title, .title, h2, h3, h4, h5, [itemprop='name'], a[title]").first().text().trim();
       const priceText = $(el).find(".price, .property-price, .product-price, [itemprop='price'], [id*='price'], .amount").first().text().trim();
       
+      const rawHref = $(el).find("a[href]").first().attr("href") || $(el).attr("href") || "";
+      const productUrl = rawHref ? makeAbsoluteUrl(rawHref, normalized) : normalized;
+
+      const descText = $(el).find(".description, .product-desc, .details, .summary, [itemprop='description'], p").first().text().trim();
+      const finalDesc = descText || `${title} from ${company.name}.`;
+
       let imgSrc = "";
       $(el).find("img, source, [style*='background']").each((_, imgEl) => {
         if (imgSrc) return;
@@ -299,10 +314,13 @@ export async function scrapeAndImportWebsite(targetUrl: string): Promise<Scrapin
         const finalImg = (imgSrc && isValidProductImage(imgSrc)) ? imgSrc : ogImage;
 
         products.push({
+          sourceUrl: productUrl,
+          productUrl: productUrl,
+          buyUrl: productUrl,
           title,
           price: parsedPrice,
           originalPrice: Math.round(parsedPrice * 1.15),
-          description: $(el).find(".description, p").first().text().trim() || `${title} from ${company.name}.`,
+          description: finalDesc,
           category: "General",
           image: finalImg,
           brand: company.name,

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
-import { getLocalImportedProducts } from "@/app/(seller)/dashboard/catalog/actions";
+import clientPromise, { getDb, getAllSellerProductCollectionNames } from "@/lib/mongodb";
 import { parseSearchIntentWithGemini, generateGeminiSearchResponse } from "@/lib/gemini";
 
 export interface SearchListingItem {
   id: string;
   title: string;
   price: string;
+  rawPrice?: number;
   originalPrice?: string;
   category: string;
   location: string;
@@ -19,20 +19,31 @@ export interface SearchListingItem {
   specs?: string[];
   link: string;
   websiteUrl?: string;
+  productUrl?: string;
+  sourceUrl?: string;
+  buyUrl?: string;
   whatsappUrl?: string;
+  phone?: string;
+  sellerName?: string;
+  sellerSlug?: string;
 }
 
 const STOPWORDS = new Set([
   "in", "a", "an", "the", "for", "is", "of", "and", "to", "with", "per", "on", "at", 
   "by", "or", "show", "me", "find", "get", "search", "give", "list", "listing", 
   "listings", "all", "type", "near", "under", "need", "want", "please", "chatgpt",
-  "can", "you", "tell", "about", "what", "are", "do", "have", "some", "any", "from"
+  "can", "you", "tell", "about", "what", "are", "do", "does", "have", "some", "any", "from",
+  "who", "where", "when", "why", "how", "much", "many", "price", "prices", "cost", "costs",
+  "rate", "rates", "buy", "sell", "selling", "available", "availability", "detail", "details",
+  "info", "information", "product", "products", "item", "items", "i", "my", "we", "our"
 ]);
 
 const GENERIC_SEARCH_WORDS = new Set([
   "product", "products", "item", "items", "catalog", "store", "shop", "everything",
   "all", "inventory", "things", "buy", "sell", "available", "offerings", "services"
 ]);
+
+const GREETING_REGEX = /^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|howdy|hola|namaste|what\s+is\s+truedeal|who\s+are\s+you|help|what\s+can\s+you\s+do|start)[\s!?.]*$/i;
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -47,25 +58,22 @@ export async function POST(req: Request) {
     if (!query) {
       return NextResponse.json({
         success: true,
-        text: "Please type a keyword or describe what you are looking for in products, services, or properties.",
-        appliedFilters: ["⚡ AI Ready"],
-        suggestedFollowUps: [
-          "Commercial offices in Pune, Maharashtra",
-          "Gaming laptops under ₹60K",
-          "Ayurvedic healthcare and wellness products",
-          "IT & corporate consulting services"
-        ],
+        text: "Please type a keyword or describe what you are looking for in products, services, or verified businesses.",
+        appliedFilters: ["⚡ Database Ready"],
+        suggestedFollowUps: ["🍲 Ayurmor Moringa Premix Soup", "🥤 ABC Malt Health Drink", "🏢 Commercial Properties Pune"],
         listings: []
       });
     }
 
     const lowerQuery = query.toLowerCase();
+    const isGreeting = GREETING_REGEX.test(query.trim());
+
     const rawTokens = lowerQuery.split(/[^\w\d]+/).filter(Boolean);
     const searchTokens = rawTokens.filter(t => t.length >= 2 && !STOPWORDS.has(t));
     const fallbackTokens = searchTokens.length > 0 ? searchTokens : rawTokens.filter(t => t.length >= 2);
 
-    // Check if user is asking for general products / catalog
-    const isGenericQuery = searchTokens.length === 0 || 
+    const isGenericQuery = isGreeting || 
+      searchTokens.length === 0 || 
       searchTokens.every(t => GENERIC_SEARCH_WORDS.has(t)) ||
       lowerQuery.includes("all products") ||
       lowerQuery.includes("search products") ||
@@ -73,240 +81,223 @@ export async function POST(req: Request) {
       lowerQuery.includes("find products") ||
       lowerQuery.includes("what products");
 
-    // 1. Run Gemini AI Natural Language Query Intent Parsing
-    const parsedIntent = await parseSearchIntentWithGemini(query);
-    const combinedTokens = Array.from(new Set([...fallbackTokens, ...(parsedIntent.keywords || [])])).filter(t => t.length >= 2);
+    // 1. Natural language intent parsing with AI
+    let parsedIntent: any = { intent: "search_products", keywords: fallbackTokens };
+    if (!isGreeting) {
+      try {
+        parsedIntent = await parseSearchIntentWithGemini(query);
+      } catch {}
+    }
+
+    // Clean extracted keywords against stopwords
+    const cleanAiKeywords = (parsedIntent.keywords || [])
+      .map((k: string) => k.toLowerCase().trim())
+      .filter((k: string) => k.length >= 2 && !STOPWORDS.has(k));
+
+    const combinedTokens = Array.from(new Set([...fallbackTokens, ...cleanAiKeywords])).filter(t => t.length >= 2);
     const finalTokens = combinedTokens.length > 0 ? combinedTokens : [lowerQuery];
 
-    const localProducts = await getLocalImportedProducts("all");
-
-    // 2. Query MongoDB Database products & company portfolios
+    // 2. Query MongoDB strictly from the database
     let dbProducts: any[] = [];
     let matchedCompanyProfile: any = null;
+    let mongoConnected = false;
 
     try {
       const client = await clientPromise;
       if (client) {
         const db = client.db();
-        
-        // 2a. Check if query matches a Company / Store Portfolio
+        mongoConnected = true;
+
+        // 2a. Query products across all seller collections in Truedeal DB
         const escapedTokens = finalTokens.map(escapeRegex);
-        const portfolioConditions = escapedTokens.map(token => ({
-          $or: [
-            { companyName: { $regex: token, $options: "i" } },
-            { slug: { $regex: token, $options: "i" } },
-            { website: { $regex: token, $options: "i" } },
-            { businessType: { $regex: token, $options: "i" } },
-            { about: { $regex: token, $options: "i" } }
-          ]
-        }));
+        const sellerProductCollections = await getAllSellerProductCollectionNames();
+        const candidateDocs: any[] = [];
 
-        let pDoc = portfolioConditions.length > 0 ? await db.collection("portfolios").findOne({ $or: portfolioConditions }) : null;
-        
-        // Fallback search by slug or name if query contains known brand names
-        if (!pDoc) {
-          if (lowerQuery.includes("anv") || lowerQuery.includes("realty") || lowerQuery.includes("reealty")) {
-            pDoc = await db.collection("portfolios").findOne({ slug: "anv-reealty" });
-          } else if (lowerQuery.includes("abc") || lowerQuery.includes("electronics")) {
-            pDoc = await db.collection("portfolios").findOne({ slug: "abc-electronics" });
-          } else if (lowerQuery.includes("tissue") || lowerQuery.includes("tissuekart")) {
-            pDoc = await db.collection("portfolios").findOne({ slug: "tissuekart" });
-          }
-        }
-
-        if (pDoc) {
-          const sellerDoc = pDoc.userId ? await db.collection("sellers").findOne({ userId: pDoc.userId }) : null;
-          const userDoc = pDoc.userId ? await db.collection("users").findOne({ _id: pDoc.userId }) : null;
-
-          matchedCompanyProfile = {
-            name: pDoc.companyName || "Verified Enterprise",
-            ownerName: pDoc.ownerName || pDoc.contactPerson || sellerDoc?.ownerName || userDoc?.name || "Verified Business Owner",
-            businessType: pDoc.businessType || "Verified Business & Service Provider",
-            yearEstablished: pDoc.yearEstablished || "2018",
-            tagline: pDoc.tagline || "",
-            about: pDoc.about || "",
-            website: pDoc.website || "",
-            portfolioUrl: `/portfolio/${pDoc.slug || "anv-reealty"}`,
-            phone: pDoc.phone || "+91 97661 37115",
-            whatsapp: pDoc.whatsapp || "919766137115",
-            email: pDoc.email || "",
-            address: pDoc.address || "",
-            city: pDoc.city || "Pune",
-            state: pDoc.state || "Maharashtra",
-            gstin: pDoc.gstin || "",
-            rating: pDoc.rating || 4.9,
-            totalReviews: pDoc.totalReviews || 24,
-            logo: pDoc.logo || "",
-            services: Array.isArray(pDoc.specialities) 
-              ? pDoc.specialities.map((s: any) => s.title || s)
-              : (Array.isArray(pDoc.categories) ? pDoc.categories : [
-                  "Commercial Real Estate & Property Advisory",
-                  "Office Space Leasing & Sales",
-                  "Pre-Leased Corporate Investments",
-                  "Medical & Hospital Facilities"
-                ])
-          };
-        }
-
-        // 2b. Query matching products from MongoDB
         if (isGenericQuery) {
-          // If asking for all products / catalog, retrieve latest active catalog products
-          dbProducts = await db.collection("products")
-            .find({ isActive: true })
-            .sort({ updatedAt: -1 })
-            .limit(30)
-            .toArray();
+          for (const colName of sellerProductCollections) {
+            try {
+              const docs = await db.collection(colName)
+                .find({ isActive: true })
+                .sort({ updatedAt: -1 })
+                .limit(20)
+                .toArray();
+              candidateDocs.push(...docs);
+            } catch {}
+          }
+          dbProducts = candidateDocs.slice(0, 40);
         } else {
           const orConditions: any[] = escapedTokens.map(token => ({
             $or: [
               { title: { $regex: token, $options: "i" } },
               { name: { $regex: token, $options: "i" } },
+              { modelName: { $regex: token, $options: "i" } },
               { description: { $regex: token, $options: "i" } },
               { shortDesc: { $regex: token, $options: "i" } },
               { brand: { $regex: token, $options: "i" } },
               { sellerSlug: { $regex: token, $options: "i" } },
+              { portfolioSlug: { $regex: token, $options: "i" } },
               { aiKeywords: { $regex: token, $options: "i" } },
               { category: { $regex: token, $options: "i" } },
               { city: { $regex: token, $options: "i" } },
               { state: { $regex: token, $options: "i" } },
-              { type: { $regex: token, $options: "i" } }
+              { type: { $regex: token, $options: "i" } },
+              { "specs.value": { $regex: token, $options: "i" } },
+              { "specs.key": { $regex: token, $options: "i" } }
             ]
           }));
 
-          if (parsedIntent.location?.city) {
+          if (parsedIntent?.location?.city) {
             orConditions.push({ city: { $regex: escapeRegex(parsedIntent.location.city), $options: "i" } });
           }
-          if (parsedIntent.location?.state) {
+          if (parsedIntent?.location?.state) {
             orConditions.push({ state: { $regex: escapeRegex(parsedIntent.location.state), $options: "i" } });
           }
-          if (parsedIntent.category) {
+          if (parsedIntent?.category) {
             orConditions.push({ category: { $regex: escapeRegex(parsedIntent.category), $options: "i" } });
           }
 
-          const regexFilter = orConditions.length > 0 ? { $or: orConditions } : {};
+          const regexFilter = orConditions.length > 0 ? { isActive: true, $or: orConditions } : { isActive: true };
 
-          dbProducts = await db.collection("products")
-            .find(regexFilter)
-            .limit(30)
-            .toArray();
+          for (const colName of sellerProductCollections) {
+            try {
+              const docs = await db.collection(colName)
+                .find(regexFilter)
+                .limit(20)
+                .toArray();
+              candidateDocs.push(...docs);
+            } catch {}
+          }
 
-          // Fallback if specific tokens yielded 0 products: search active products by category or return active listings
-          if (dbProducts.length === 0) {
-            const broadMatch = await db.collection("products")
-              .find({ isActive: true })
-              .sort({ updatedAt: -1 })
-              .limit(20)
-              .toArray();
-            if (broadMatch.length > 0) {
-              dbProducts = broadMatch;
+          // Category Intent Detection & Relevance Ranking
+          const isRealEstateQuery = /(commercial|office|retail|property|properties|real estate|showroom|eon|wtc|kharadi|baner|workstation|bare-shell|plug-and-play)/i.test(lowerQuery);
+          const isFoodWellnessQuery = /(ayurmor|moringa|soup|malt|wellness|sprouted|beverage|ragi|nutrition)/i.test(lowerQuery);
+          const isSkincareQuery = /(pureplush|pureplus|soap|soaps|shampoo|facewash|facepack|waxing|kesh oil|hair wash|sheabutter|clay|organic skincare|haircare|botanical)/i.test(lowerQuery);
+
+          const scoredDocs = candidateDocs.map(p => {
+            let score = 0;
+            const pTitle = (p.title || p.name || "").toLowerCase();
+            const pBrand = (p.brand || "").toLowerCase();
+            const pCategory = (p.category || "").toLowerCase();
+            const pText = `${pTitle} ${pCategory} ${pBrand} ${p.shortDesc} ${(p.aiKeywords || []).join(" ")}`.toLowerCase();
+            
+            for (const token of finalTokens) {
+              if (pTitle.includes(token)) score += 30;
+              if (pBrand.includes(token)) score += 20;
+              if (pCategory.includes(token)) score += 15;
+              if (pText.includes(token)) score += 10;
             }
+
+            if (isRealEstateQuery && (pCategory.includes("commercial") || pCategory.includes("real estate") || p.type?.toLowerCase().includes("property"))) {
+              score += 50;
+            } else if (isRealEstateQuery && !pCategory.includes("commercial") && !pCategory.includes("real estate")) {
+              score -= 100; // Deprioritize non-real-estate when asking commercial
+            }
+
+            if (isFoodWellnessQuery && (pCategory.includes("soup") || pCategory.includes("wellness") || pCategory.includes("malt") || pBrand.includes("ayurmor"))) {
+              score += 50;
+            } else if (isFoodWellnessQuery && (pCategory.includes("commercial") || pCategory.includes("real estate"))) {
+              score -= 100; // Deprioritize real estate when asking food
+            }
+
+            if (isSkincareQuery && (pCategory.includes("soap") || pCategory.includes("shampoo") || pCategory.includes("powder") || pCategory.includes("oil") || pCategory.includes("care") || pBrand.includes("pureplush") || pBrand.includes("pureplus"))) {
+              score += 50;
+            } else if (isSkincareQuery && (pCategory.includes("commercial") || pCategory.includes("real estate"))) {
+              score -= 100; // Deprioritize real estate when asking skincare
+            }
+
+            return { doc: p, score };
+          });
+
+          // Filter out heavily negative-scored docs and sort by relevance
+          dbProducts = scoredDocs
+            .filter(item => item.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map(item => item.doc);
+
+          // If filtering was too strict, fallback to candidateDocs
+          if (dbProducts.length === 0 && candidateDocs.length > 0) {
+            dbProducts = candidateDocs;
+          }
+        }
+
+        // 2b. Accurately resolve Company Profile Showcase (if query specifically targets a company or all top products belong to one seller)
+        const isExplicitAnv = /(anv|reealty|anvrealty|anv real)/i.test(lowerQuery);
+        const isExplicitAyurmor = /(ayurmor|saish|technofarms)/i.test(lowerQuery);
+        const isExplicitPureplush = /(pureplush|pureplus|pure plush)/i.test(lowerQuery);
+
+        let targetCompanySlug: string | null = null;
+        if (isExplicitAnv) {
+          targetCompanySlug = "anvreeality";
+        } else if (isExplicitAyurmor) {
+          targetCompanySlug = "ayurmor-more";
+        } else if (isExplicitPureplush) {
+          targetCompanySlug = "pureplush";
+        } else if (dbProducts.length > 0) {
+          // If all top products belong to the same seller, associate that company
+          const firstSlug = dbProducts[0].sellerSlug || dbProducts[0].portfolioSlug;
+          const allSameSeller = dbProducts.slice(0, 4).every(p => (p.sellerSlug || p.portfolioSlug) === firstSlug);
+          if (allSameSeller && firstSlug && firstSlug !== "seller" && firstSlug !== "default") {
+            targetCompanySlug = firstSlug;
+          }
+        }
+
+        if (targetCompanySlug) {
+          const foundPortfolio = await db.collection("portfolios").findOne({
+            $or: [{ slug: targetCompanySlug }, { slug: { $regex: escapeRegex(targetCompanySlug), $options: "i" } }]
+          });
+
+          if (foundPortfolio) {
+            const pDoc = JSON.parse(JSON.stringify(foundPortfolio));
+            matchedCompanyProfile = {
+              name: pDoc.companyName || pDoc.storeName || "Verified Business",
+              ownerName: pDoc.ownerName || pDoc.contactPerson || undefined,
+              businessType: pDoc.businessType || "Verified Merchant",
+              yearEstablished: pDoc.yearEstablished || undefined,
+              tagline: pDoc.tagline || "",
+              about: pDoc.about || "",
+              website: pDoc.website || "",
+              portfolioUrl: `/portfolio/${pDoc.slug}`,
+              phone: pDoc.phone || "",
+              whatsapp: pDoc.whatsapp || "",
+              email: pDoc.email || "",
+              address: pDoc.address || "",
+              city: pDoc.city || "",
+              state: pDoc.state || "",
+              gstin: pDoc.gstin || "",
+              rating: pDoc.rating || 5.0,
+              totalReviews: pDoc.totalReviews || 0,
+              logo: pDoc.logo || "",
+              services: Array.isArray(pDoc.specialities) 
+                ? pDoc.specialities.map((s: any) => typeof s === "object" ? s.title || s.name : String(s))
+                : (Array.isArray(pDoc.categories) ? pDoc.categories : [])
+            };
           }
         }
       }
-    } catch (mongoErr) {
-      console.warn("MongoDB search fallback:", mongoErr);
+    } catch (mongoErr: any) {
+      console.error("MongoDB Query Error in search-listings:", mongoErr.message);
     }
 
-    // Known fallback match for ANV REEALTY or Tissuekart if queried by user
-    if (!matchedCompanyProfile) {
-      if (lowerQuery.includes("anv") || lowerQuery.includes("realty") || lowerQuery.includes("reealty")) {
-        matchedCompanyProfile = {
-          name: "ANV REEALTY",
-          ownerName: "Abhijit V. (Principal Broker & Managing Partner)",
-          businessType: "Commercial Real Estate & Property Advisory",
-          yearEstablished: "2018",
-          tagline: "Commercial Property & PreLeased Real Estate Solutions in Pune",
-          about: "ANV REEALTY is a premier MahaRERA-certified real estate consultancy specializing in commercial office spaces, pre-leased corporate investments, medical hospital premises, and retail developments across Pune, Mumbai & Maharashtra.",
-          website: "https://anvreealty.com",
-          portfolioUrl: "/portfolio/anv-reealty",
-          phone: "+91 97661 37115",
-          whatsapp: "919766137115",
-          email: "info@anvreealty.com",
-          address: "Magarpatta City, Hadapsar, Pune, Maharashtra 411028",
-          city: "Pune",
-          state: "Maharashtra",
-          gstin: "A52100000055",
-          rating: 4.9,
-          totalReviews: 24,
-          logo: "https://anvreealty.com/images/logo.png",
-          services: [
-            "Commercial Office Space Sale/Lease",
-            "Pre-Leased High ROI Properties",
-            "Medical & Hospital Premises",
-            "Commercial Retail Showrooms",
-            "Project Mandate & Portfolio Advisory"
-          ]
-        };
-      } else if (lowerQuery.includes("tissuekart") || lowerQuery.includes("tissue")) {
-        matchedCompanyProfile = {
-          name: "Tissuekart",
-          ownerName: "Authorized Business Proprietor",
-          businessType: "Hygiene & Custom Printed Paper Products Manufacturer",
-          yearEstablished: "2020",
-          tagline: "Custom Printed Paper Napkins & Tissue Products",
-          about: "Tissuekart specializes in manufacturing and supplying custom branded print paper napkins, disposable tissues, and hygienic dining accessories for restaurants, hotels, corporate events, and direct consumers across India.",
-          website: "https://tissuekart.com",
-          portfolioUrl: "/portfolio/tissuekart",
-          phone: "+91 98200 12345",
-          whatsapp: "919820012345",
-          email: "care@tissuekart.com",
-          address: "Mumbai / Pune, Maharashtra, India",
-          city: "Mumbai",
-          state: "Maharashtra",
-          rating: 4.8,
-          totalReviews: 38,
-          services: [
-            "Custom Printed Paper Napkins",
-            "B2B Hospitality Supplies",
-            "Corporate Brand Packaging",
-            "Direct Doorstep Delivery"
-          ]
-        };
-      }
+    if (!mongoConnected) {
+      return NextResponse.json({
+        success: true,
+        query,
+        text: `Unable to connect to MongoDB database (check Atlas Network Access IP whitelist). Please verify your MongoDB connection to fetch live database listings.`,
+        appliedFilters: ["⚠️ Database Offline"],
+        suggestedFollowUps: [],
+        listings: []
+      });
     }
 
-    // 3. Query Local Catalog Products (imported or created by seller)
-    const localMatches = localProducts.filter(p => {
-      if (isGenericQuery) return true;
-      const searchableText = `
-        ${p.title || p.name || ""} 
-        ${p.description || p.shortDesc || ""} 
-        ${p.brand || ""} 
-        ${p.category || ""} 
-        ${p.city || ""} 
-        ${p.state || ""} 
-        ${p.type || ""}
-        ${Array.isArray(p.aiKeywords) ? p.aiKeywords.join(" ") : ""}
-      `.toLowerCase();
-
-      return finalTokens.some(token => searchableText.includes(token)) || searchableText.includes(lowerQuery);
-    });
-
-    // 4. Combine Database & User Imported Products
-    const combinedProducts: any[] = [];
-    const seenIds = new Set<string>();
-
-    [...localMatches, ...dbProducts].forEach(p => {
-      const pId = p._id ? p._id.toString() : (p.id || String(p.title || p.name));
-      if (pId && !seenIds.has(pId)) {
-        seenIds.add(pId);
-        combinedProducts.push(p);
-      }
-    });
-
-    // Map to SearchListingItem UI Format
-    const rawListings: SearchListingItem[] = combinedProducts.map((p) => {
-      const primaryImg = p.images?.find((img: any) => img.isPrimary)?.url || p.images?.[0]?.url || p.image || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80";
+    // 3. Map ONLY real database products to UI SearchListingItem format
+    const rawListings: SearchListingItem[] = dbProducts.map((p, pIdx) => {
+      const primaryImg = p.images?.find((img: any) => img.isPrimary)?.url || p.images?.[0]?.url || p.image || "https://images.unsplash.com/photo-1557821552-17105176677c?w=600&q=80";
+      const sellerSlug = p.sellerSlug || p.portfolioSlug || "seller";
+      const companyName = p.brand || matchedCompanyProfile?.name || "Verified Seller";
+      const city = p.city || "";
+      const state = p.state || "";
+      const gstin = p.gstin || undefined;
       
-      const defaultSlug = p.brand ? p.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "anv-reealty";
-      const portfolioSlug = p.portfolioSlug || p.sellerSlug || (p.brand?.toLowerCase().includes("abc") ? "abc-electronics" : (defaultSlug || "anv-reealty"));
-      const companyName = p.brand || matchedCompanyProfile?.name || "TrueDeal Verified";
-      const city = p.city || matchedCompanyProfile?.city || "Pune";
-      const state = p.state || matchedCompanyProfile?.state || "Maharashtra";
-      const gstin = p.gstin || (companyName.toLowerCase().includes("anv") ? "A52100000055" : undefined);
-      const whatsapp = p.whatsapp || matchedCompanyProfile?.whatsapp || "919766137115";
-      const sourceWebsite = p.sourceUrl || p.website || matchedCompanyProfile?.website || `http://localhost:3000/portfolio/${portfolioSlug}`;
-
       const priceVal = typeof p.price === "number" ? p.price : (parseFloat(String(p.price).replace(/[^0-9.]/g, "")) || 0);
       const formattedPrice = priceVal >= 10000000 
         ? `₹${(priceVal / 10000000).toFixed(2)} Cr` 
@@ -316,47 +307,48 @@ export async function POST(req: Request) {
             ? `₹${priceVal.toLocaleString("en-IN")}`
             : "Contact for Pricing";
 
+      const uniqueId = p._id ? p._id.toString() : `db-item-${pIdx}`;
+
       return {
-        id: p._id ? p._id.toString() : (p.id || `item-${Date.now()}`),
-        title: p.title || p.name,
+        id: uniqueId,
+        title: p.title || p.name || "Untitled Product",
         price: formattedPrice,
-        originalPrice: p.originalPrice ? `₹${Number(p.originalPrice).toLocaleString("en-IN")}` : undefined,
-        category: p.category || "Verified Listing",
-        location: `${city}, ${state}`,
+        rawPrice: priceVal,
+        originalPrice: p.originalPrice ? (p.originalPrice >= 10000000 ? `₹${(p.originalPrice / 10000000).toFixed(2)} Cr` : `₹${Number(p.originalPrice).toLocaleString("en-IN")}`) : undefined,
+        category: p.category || "Database Listing",
+        location: city && state ? `${city}, ${state}` : (city || state || "India"),
         city,
         state,
-        badge: gstin ? `MahaRERA: ${gstin}` : `${companyName} Verified`,
-        badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        badge: gstin ? `GSTIN: ${gstin}` : (p.badgeType === "rera" ? "MahaRERA Approved" : `${companyName.split(" ")[0]} Verified`),
+        badgeColor: p.badgeType === "rera" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-emerald-50 text-emerald-700 border-emerald-200",
         image: primaryImg,
-        description: p.description || p.shortDesc || "Listing from database.",
-        specs: Array.isArray(p.specs) ? p.specs.map((s: any) => typeof s === "object" ? `${s.key}: ${s.value}` : String(s)) : ["Verified Partner"],
-        link: `/portfolio/${portfolioSlug}`,
-        websiteUrl: sourceWebsite,
-        whatsappUrl: `https://wa.me/${whatsapp}?text=${encodeURIComponent(`Hi ${companyName}, I am interested in "${p.title || p.name}" on TrueDeal.`)}`
+        description: p.description || p.shortDesc || "Verified catalog listing in database.",
+        specs: Array.isArray(p.specs) 
+          ? p.specs.map((s: any) => typeof s === "object" ? `${s.key}: ${s.value}` : String(s)) 
+          : ["Database Verified"],
+        link: `/portfolio/${sellerSlug}`,
+        websiteUrl: p.sourceUrl || p.buyUrl || p.productUrl || p.website || matchedCompanyProfile?.website || "",
+        productUrl: p.sourceUrl || p.buyUrl || p.productUrl || "",
+        sourceUrl: p.sourceUrl || p.buyUrl || p.productUrl || "",
+        buyUrl: p.buyUrl || p.sourceUrl || p.productUrl || "",
+        whatsappUrl: p.whatsapp ? `https://wa.me/${p.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${companyName}, I am inquiring about "${p.title || p.name}" on TrueDeal.`)}` : (matchedCompanyProfile?.whatsapp ? `https://wa.me/${matchedCompanyProfile.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${companyName}, I am inquiring about "${p.title || p.name}" on TrueDeal.`)}` : undefined),
+        phone: p.phone || matchedCompanyProfile?.phone || "",
+        sellerName: companyName,
+        sellerSlug
       };
     });
 
-    // 5. Generate Conversational Intelligence, Badges & Re-ranking
+    // 4. Generate Conversational Intelligence based strictly on real database listings
     const aiOutput = await generateGeminiSearchResponse(query, rawListings, parsedIntent, matchedCompanyProfile);
 
-    // Re-rank listings according to semantic evaluation
-    let finalListingResults = rawListings;
-    if (aiOutput.rankedListingIds && aiOutput.rankedListingIds.length > 0) {
-      const orderMap = new Map(aiOutput.rankedListingIds.map((id, index) => [id, index]));
-      finalListingResults = [...rawListings].sort((a, b) => {
-        const rankA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
-        const rankB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
-        return rankA - rankB;
-      });
-    }
-
-    // Fallback summary text if no items found
     let summaryText = aiOutput.summaryText;
     if (!summaryText || summaryText.includes("No result found")) {
-      if (finalListingResults.length > 0) {
-        summaryText = `Found ${finalListingResults.length} verified listings matching "${query}". Here are the top recommendations with pricing, specifications, and direct seller contact.`;
+      if (rawListings.length > 0) {
+        summaryText = `Found ${rawListings.length} verified database listing${rawListings.length === 1 ? "" : "s"} matching "${query}".`;
+      } else if (matchedCompanyProfile) {
+        summaryText = `Found verified company profile for "${matchedCompanyProfile.name}" in database.`;
       } else {
-        summaryText = `I couldn't find exact matches for "${query}". Try searching for commercial offices, residential properties, gaming laptops, or tissue products.`;
+        summaryText = `No listings found in the database matching "${query}".`;
       }
     }
 
@@ -364,25 +356,20 @@ export async function POST(req: Request) {
       success: true,
       query,
       text: summaryText,
-      appliedFilters: aiOutput.appliedFilters || ["⚡ AI Verified"],
-      suggestedFollowUps: aiOutput.suggestedFollowUps || [
-        "Commercial office space in Pune",
-        "Pre-leased commercial properties",
-        "Laptops under ₹60K"
-      ],
-      listings: finalListingResults,
-      companyProfile: matchedCompanyProfile || aiOutput.companyProfile
+      appliedFilters: aiOutput.appliedFilters || ["⚡ Database Verified"],
+      suggestedFollowUps: aiOutput.suggestedFollowUps || [],
+      listings: rawListings,
+      companyProfile: matchedCompanyProfile || undefined
     });
   } catch (error: any) {
     console.error("Error in search-listings API:", error);
     return NextResponse.json({
       success: true,
       query,
-      text: "Found top recommended verified marketplace listings for you.",
-      appliedFilters: ["⚡ AI Marketplace"],
-      suggestedFollowUps: ["Commercial office in Pune", "Laptops under ₹60K", "Ayurvedic products"],
+      text: `An error occurred while querying the database: ${error.message}`,
+      appliedFilters: ["⚠️ Database Error"],
+      suggestedFollowUps: [],
       listings: []
     });
   }
 }
-

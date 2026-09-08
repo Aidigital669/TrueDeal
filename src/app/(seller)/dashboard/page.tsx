@@ -1,4 +1,4 @@
-import clientPromise from "@/lib/mongodb";
+import clientPromise, { getDb, getSellerProductsCollection } from "@/lib/mongodb";
 import { getCurrentUserSession } from "@/lib/auth-actions";
 import { ObjectId } from "mongodb";
 import { 
@@ -22,23 +22,30 @@ export default async function DashboardPage() {
   let catalogHealth = 100;
   let warnings = 0;
   let topOfferings: any[] = [];
+  let portfolio: any = null;
+  let seller: any = null;
 
   try {
-    const client = await clientPromise;
-    const db = client.db();
+    const db = await getDb();
     session = await getCurrentUserSession();
 
-    // 1. Get Portfolio / Seller details based on logged-in user
-    let portfolio = null;
-    let seller = null;
+    const isAnv = session?.slug === "anv-reealty" || session?.slug === "anvreeality" || session?.email === "contact@anvreealty.com" || session?.storeName?.includes("ANV");
+    const isAyurmor = session?.slug === "ayurmor-more" || session?.email?.includes("ayurmor") || session?.storeName?.includes("Ayurmor");
+    const sellerSlug = session?.slug || (isAnv ? "anvreeality" : isAyurmor ? "ayurmor-more" : "seller-store");
 
+    // 1. Get Portfolio / Seller details based on logged-in user
     if (session?.userId) {
       try {
         portfolio = await db.collection("portfolios").findOne({ 
-          $or: [{ userId: new ObjectId(session.userId) }, { slug: session.slug }] 
+          $or: [{ userId: new ObjectId(session.userId) }, { slug: sellerSlug }] 
         });
-        seller = await db.collection("sellers").findOne({ userId: new ObjectId(session.userId) });
+        seller = await db.collection("sellers").findOne({ 
+          $or: [{ userId: new ObjectId(session.userId) }, { slug: sellerSlug }] 
+        });
       } catch {}
+    } else {
+      portfolio = await db.collection("portfolios").findOne({ slug: sellerSlug });
+      seller = await db.collection("sellers").findOne({ slug: sellerSlug });
     }
 
     if (portfolio?.companyName) {
@@ -54,45 +61,16 @@ export default async function DashboardPage() {
       companyName = session.storeName;
     }
 
-    // 2. Real Counts from Database strictly scoped to this seller
-    const isAnv = session?.slug === "anv-reealty" || session?.email === "contact@anvreealty.com" || session?.storeName?.includes("ANV");
-    let productQuery: any = { isActive: true };
-
-    if (isAnv) {
-      productQuery = {
-        isActive: true,
-        $or: [
-          { sellerSlug: "anv-reealty" },
-          { brand: { $regex: "ANV", $options: "i" } },
-          { sourceUrl: { $regex: "anvreealty|anvrealty", $options: "i" } }
-        ]
-      };
-    } else if (seller?._id || session?.userId || session?.slug) {
-      const sellerConditions: any[] = [];
-      if (session?.slug) sellerConditions.push({ sellerSlug: session.slug });
-      if (session?.storeName) sellerConditions.push({ brand: session.storeName });
-      if (seller?._id) sellerConditions.push({ sellerId: seller._id });
-      if (session?.userId && ObjectId.isValid(session.userId)) {
-        try { sellerConditions.push({ sellerId: new ObjectId(session.userId) }); } catch {}
-      }
-      productQuery = sellerConditions.length > 0 
-        ? { isActive: true, $or: sellerConditions } 
-        : { isActive: true, sellerSlug: session?.slug || "__no_seller__" };
-    } else {
-      productQuery = { isActive: true, sellerSlug: "__no_seller__" };
-    }
-
-    totalProducts = await db.collection("products").countDocuments(productQuery);
+    // 2. Real Counts from Database strictly scoped to this seller's dedicated collection
+    const productCol = await getSellerProductsCollection(sellerSlug);
+    totalProducts = await productCol.countDocuments({ isActive: true });
     totalCategories = await db.collection("categories").countDocuments();
     
-    const slugQuery = portfolio?.slug || session?.slug || (isAnv ? "anv-reealty" : "seller-store");
-    totalInquiries = slugQuery 
-      ? await db.collection("inquiries").countDocuments({ sellerSlug: slugQuery })
-      : (seller?._id ? await db.collection("inquiries").countDocuments({ sellerId: seller._id }) : 0);
+    totalInquiries = await db.collection("inquiries").countDocuments({ sellerSlug });
 
     // 3. Health check
-    const missingDesc = await db.collection("products").countDocuments({ 
-      ...productQuery,
+    const missingDesc = await productCol.countDocuments({ 
+      isActive: true,
       $or: [{ description: { $exists: false } }, { description: "" }] 
     });
     warnings = missingDesc;
@@ -100,10 +78,10 @@ export default async function DashboardPage() {
       ? Math.max(80, Math.round(((totalProducts - missingDesc) / totalProducts) * 100))
       : 100;
 
-    // 4. Fetch Top Performing Products from live database strictly for this seller
-    const rawTop = await db.collection("products")
+    // 4. Fetch Top Performing Products strictly from this seller's collection
+    const rawTop = await productCol
       .aggregate([
-        { $match: productQuery },
+        { $match: { isActive: true } },
         { $sort: { aiVisibility: -1, updatedAt: -1 } },
         { $limit: 6 },
         {
@@ -121,7 +99,7 @@ export default async function DashboardPage() {
     topOfferings = rawTop.map((p, idx) => ({
       id: p._id.toString(),
       name: p.title,
-      type: p.cat?.name || "General Catalog",
+      type: p.cat?.name || p.category || "General Catalog",
       price: p.price,
       visitors: (p.aiVisibility ? p.aiVisibility * 18 + 120 : 850 + idx * 95).toLocaleString(),
       conversions: Math.max(1, Math.round((p.aiVisibility || 90) / 4) + (idx % 3)),
@@ -134,8 +112,8 @@ export default async function DashboardPage() {
   // Dynamic greeting based on time of day
   const hour = new Date().getHours();
   const greetingTime = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const viewsCount = totalProducts > 0 ? (totalProducts * 115 + 430).toLocaleString() : "0";
-  const liveStoreSlug = session?.slug || (companyName.toLowerCase().includes("anv") ? "anv-reealty" : "anv-reealty");
+  const viewsCount = totalProducts > 0 ? (totalProducts * 18 + 24).toLocaleString() : "0";
+  const liveStoreSlug = portfolio?.slug || session?.slug || seller?.slug || (companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")) || "seller-store";
 
   return (
     <div className="flex flex-col gap-8 w-full pb-10 font-sans">
@@ -180,10 +158,10 @@ export default async function DashboardPage() {
           trendColor="text-emerald-600" 
         />
         <StatCard 
-          title="Categories & Sectors" 
+          title="Categories" 
           icon={<Wrench className="w-5 h-5 text-orange-600" />} 
           iconBg="bg-orange-50"
-          value={String(totalCategories || (totalProducts > 0 ? 5 : 0))} 
+          value={String(totalCategories || (totalProducts > 0 ? 1 : 0))} 
           trend="Mapped to AI Engine" 
           trendColor="text-purple-600" 
         />
@@ -191,8 +169,8 @@ export default async function DashboardPage() {
           title="Buyer Inquiries" 
           icon={<Users className="w-5 h-5 text-emerald-600" />} 
           iconBg="bg-emerald-50"
-          value={String(totalInquiries || (totalProducts > 0 ? 12 : 0))} 
-          trend="+14% vs last week" 
+          value={String(totalInquiries || 0)} 
+          trend="Direct WhatsApp / Form" 
           trendColor="text-emerald-600" 
         />
         <StatCard 
@@ -200,7 +178,7 @@ export default async function DashboardPage() {
           icon={<Eye className="w-5 h-5 text-sky-600" />} 
           iconBg="bg-sky-50"
           value={viewsCount} 
-          trend="+18% discoverability" 
+          trend="Verified Visibility" 
           trendColor="text-emerald-600" 
         />
       </div>
@@ -231,7 +209,7 @@ export default async function DashboardPage() {
               </div>
               <div className="flex items-start gap-2 text-sm text-gray-700 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <span>MahaRERA registration and contact data connected</span>
+                <span>Verified business channels & portfolio connected</span>
               </div>
             </div>
           </div>
@@ -242,7 +220,7 @@ export default async function DashboardPage() {
                 Manage All {totalProducts} Products
               </Button>
             </Link>
-            <Link href={`/portfolio/${liveStoreSlug}`} target="_blank">
+            <Link href={`/portfolio/${liveStoreSlug}?from=dashboard`} target="_blank">
               <Button className="bg-[#4F46E5] hover:bg-[#4338ca] text-white font-bold rounded-xl py-5 px-5 transition-all flex items-center gap-1.5">
                 <ExternalLink className="w-4 h-4" /> Live Store
               </Button>

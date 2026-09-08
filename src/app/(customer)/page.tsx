@@ -398,7 +398,11 @@ export default function CustomerHome() {
                 )}
 
                 {/* Message Body */}
-                <p className="font-bold text-sm leading-relaxed mb-1">{m.text}</p>
+                {m.role === "assistant" ? (
+                  <FormattedMessageText text={m.text} />
+                ) : (
+                  <p className="font-bold text-sm leading-relaxed mb-1">{m.text}</p>
+                )}
                 
                 {/* Verified Company Profile & Owner Showcase Card */}
                 {m.companyProfile && (
@@ -635,10 +639,11 @@ export default function CustomerHome() {
                               >
                                 <button 
                                   type="button"
-                                  className="bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 font-bold text-[10px] px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-[10px] px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                                  title="View official product page for buy or description"
                                 >
-                                  <ExternalLink className="w-3 h-3 text-purple-600" />
-                                  <span>Website</span>
+                                  <ExternalLink className="w-3 h-3 text-indigo-600" />
+                                  <span>Buy / Product Link</span>
                                 </button>
                               </a>
                             )}
@@ -763,44 +768,44 @@ export default function CustomerHome() {
           </div>
         </motion.div>
 
-        {/* Suggestion Grid with Sweet Interactive Cards */}
+        {/* Compact Small Suggestion Grid with Framer Motion */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-4xl text-left font-sans"
+          transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-3xl text-left font-sans"
         >
           <SuggestionCard 
-            icon={<Building2 className="w-4 h-4 text-indigo-600" />} 
+            icon={<Sparkles className="w-3.5 h-3.5 text-emerald-600" />} 
+            badge="Wellness & Food"
+            badgeColor="bg-emerald-50 text-emerald-700 border-emerald-200"
+            title="Ayurvedic Wellness & Natural Foods" 
+            subtitle="Sprouted millet mixes, herbal soups & beverages" 
+            onClick={() => handleSend("Ayurvedic herbal wellness mixes and natural soup premixes")}
+          />
+          <SuggestionCard 
+            icon={<Laptop className="w-3.5 h-3.5 text-pink-600" />} 
+            badge="Hardware & IT"
+            badgeColor="bg-pink-50 text-pink-700 border-pink-200"
+            title="Laptops, PCs & Electronics" 
+            subtitle="High-performance laptops & computer hardware" 
+            onClick={() => handleSend("Laptops and computer hardware")}
+          />
+          <SuggestionCard 
+            icon={<Building2 className="w-3.5 h-3.5 text-indigo-600" />} 
             badge="Properties"
             badgeColor="bg-indigo-50 text-indigo-700 border-indigo-200"
-            title="Commercial Offices in Pune, Maharashtra" 
-            subtitle="Magarpatta IT Park & Undri Commercial (MahaRERA)" 
-            onClick={() => handleSend("Commercial office space in Pune, Maharashtra")}
+            title="Commercial Real Estate & Spaces" 
+            subtitle="Verified commercial offices & retail properties" 
+            onClick={() => handleSend("Commercial office space and retail properties")}
           />
           <SuggestionCard 
-            icon={<Laptop className="w-4 h-4 text-pink-600" />} 
-            badge="Electronics"
-            badgeColor="bg-pink-50 text-pink-700 border-pink-200"
-            title="Gaming Laptops & IT Hardware" 
-            subtitle="Quantum Pro X1 & ASUS ROG Workstations under ₹60K" 
-            onClick={() => handleSend("Gaming laptop under ₹60K with RTX GPU")}
-          />
-          <SuggestionCard 
-            icon={<Sparkles className="w-4 h-4 text-emerald-600" />} 
-            badge="Wellness"
-            badgeColor="bg-emerald-50 text-emerald-700 border-emerald-200"
-            title="Organic Ayurvedic & Healthcare Products" 
-            subtitle="100% Certified natural wellness, skincare & herbal health" 
-            onClick={() => handleSend("Ayurvedic herbal wellness and healthcare products")}
-          />
-          <SuggestionCard 
-            icon={<Store className="w-4 h-4 text-purple-600" />} 
+            icon={<Store className="w-3.5 h-3.5 text-purple-600" />} 
             badge="Services"
             badgeColor="bg-purple-50 text-purple-700 border-purple-200"
-            title="Corporate Consulting & IT Services" 
-            subtitle="Full-stack software, digital marketing & business suites" 
-            onClick={() => handleSend("Corporate IT and digital consulting services")}
+            title="Corporate & Professional Services" 
+            subtitle="IT development & digital business solutions" 
+            onClick={() => handleSend("Corporate and digital business services")}
           />
         </motion.div>
 
@@ -819,34 +824,91 @@ function SuggestionCard({
 }: { 
   icon: React.ReactNode; 
   title: string; 
-  subtitle: string; 
+  subtitle?: string; 
   badge?: string;
   badgeColor?: string;
   onClick?: () => void;
 }) {
   return (
     <motion.div 
-      whileHover={{ y: -3, scale: 1.01 }}
+      whileHover={{ y: -2, scale: 1.015 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="flex flex-col items-start gap-1 bg-white/85 hover:bg-white border border-white/80 hover:border-indigo-300 p-4 rounded-2xl cursor-pointer transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 group backdrop-blur-md relative overflow-hidden"
+      className="flex items-center justify-between gap-3 bg-white/90 hover:bg-white border border-gray-100/90 hover:border-indigo-300 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md hover:shadow-indigo-500/10 group backdrop-blur-md relative overflow-hidden"
     >
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-gray-50/80 border border-gray-100 group-hover:bg-indigo-50 group-hover:border-indigo-200 transition-colors">
-            {icon}
-          </div>
-          <span className="font-bold text-gray-900 group-hover:text-indigo-600 text-xs tracking-tight transition-colors">
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="p-1.5 rounded-xl bg-gray-50 border border-gray-100 group-hover:bg-indigo-50 group-hover:border-indigo-200 transition-colors shrink-0">
+          {icon}
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="font-bold text-gray-900 group-hover:text-indigo-600 text-xs tracking-tight transition-colors truncate">
             {title}
           </span>
+          {subtitle && (
+            <span className="text-gray-400 text-[10px] font-medium truncate">
+              {subtitle}
+            </span>
+          )}
         </div>
-        {badge && (
-          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeColor}`}>
-            {badge}
-          </span>
-        )}
       </div>
-      <span className="text-gray-500 text-[11px] font-medium pl-10">{subtitle}</span>
+      {badge && (
+        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0 ${badgeColor}`}>
+          {badge}
+        </span>
+      )}
     </motion.div>
   );
 }
+
+function FormattedMessageText({ text }: { text: string }) {
+  if (!text) return null;
+
+  const paragraphs = text.split(/\n\n+/);
+
+  return (
+    <div className="space-y-2 text-xs sm:text-[13px] leading-relaxed text-gray-800 font-normal">
+      {paragraphs.map((para, pIdx) => {
+        const lines = para.split(/\n+/);
+        return (
+          <div key={pIdx} className="space-y-1">
+            {lines.map((line, lIdx) => {
+              const trimmed = line.trim();
+              const isBullet = trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ");
+              const cleanLine = isBullet ? trimmed.replace(/^[-*•]\s+/, "") : line;
+
+              // Parse bold **text**
+              const parts = cleanLine.split(/(\*\*[^*]+\*\*)/g);
+
+              const renderedParts = parts.map((part, partIdx) => {
+                if (part.startsWith("**") && part.endsWith("**")) {
+                  return (
+                    <strong key={partIdx} className="font-extrabold text-gray-950">
+                      {part.slice(2, -2)}
+                    </strong>
+                  );
+                }
+                return part;
+              });
+
+              if (isBullet) {
+                return (
+                  <div key={lIdx} className="flex items-start gap-2 pl-2">
+                    <span className="text-indigo-600 font-black text-sm leading-none mt-0.5">•</span>
+                    <span className="flex-1">{renderedParts}</span>
+                  </div>
+                );
+              }
+
+              return (
+                <p key={lIdx} className={pIdx === 0 && lIdx === 0 ? "font-medium text-gray-900" : ""}>
+                  {renderedParts}
+                </p>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+

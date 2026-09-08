@@ -4,6 +4,7 @@ import {
   upgradeImageUrl, 
   makeAbsoluteUrl, 
   isValidProductImage, 
+  isImageRelevantToProduct,
   getCategoryFallbackImage 
 } from "./image-extractor";
 import { scrapeWithHeadlessBrowser } from "./headless-deep-scraper";
@@ -548,32 +549,47 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
         }
       }
 
-      // 2. Decompile hero array format (title, subtitle, tagline, image)
-      const heroRegex = /title:\s*["']([^"']+)["'],\s*subtitle:\s*["']([^"']+)["'],\s*tagline:\s*["']([^"']+)["'],[^}]*image:\s*["']([^"']+)["']/g;
+      // 2. Decompile hero array & SPA product objects (title, subtitle, tagline, image, category)
+      const objRegex = /\{[^{}]*?title\s*:\s*["']([^"']+)["'][^{}]*?\}/g;
       let hMatch;
-      while ((hMatch = heroRegex.exec(jsCode)) !== null) {
-        const pTitle = `${hMatch[1]} - ${hMatch[2]}`.trim();
-        const pTagline = hMatch[3];
-        const rawImg = hMatch[4];
+      while ((hMatch = objRegex.exec(jsCode)) !== null) {
+        const block = hMatch[0];
+        const titleMatch = block.match(/title\s*:\s*["']([^"']+)["']/);
+        const subtitleMatch = block.match(/subtitle\s*:\s*["']([^"']+)["']/);
+        const taglineMatch = block.match(/(?:tagline|desc|description|shortDesc)\s*:\s*["']([^"']+)["']/);
+        const catMatch = block.match(/(?:category|type)\s*:\s*["']([^"']+)["']/);
+        const imgMatch = block.match(/(?:image|img|src|thumbnail)\s*:\s*["']([^"']+\.(?:png|jpe?g|webp|avif))["']/i);
+
+        const pTitleRaw = titleMatch ? titleMatch[1] : "";
+        const pSubtitle = subtitleMatch ? subtitleMatch[1] : "";
+        const pTagline = taglineMatch ? taglineMatch[1] : "";
+        const pCat = catMatch ? catMatch[1] : "";
+        const rawImg = imgMatch ? imgMatch[1] : "";
+
+        if (!pTitleRaw || (!rawImg && !pTagline)) continue;
+
+        const pTitle = pSubtitle ? `${pTitleRaw} - ${pSubtitle}` : pTitleRaw;
         let pImg = rawImg;
         try { pImg = makeAbsoluteUrl(rawImg, rawUrl); } catch {}
 
         let score = 0;
-        const fullText = `${pTitle} ${pTagline} ${rawImg}`.toLowerCase();
+        const fullText = `${pTitle} ${pTagline} ${pCat} ${rawImg}`.toLowerCase();
         for (const kw of urlKeywords) {
-          if (fullText.includes(kw)) score += 20;
+          if (fullText.includes(kw)) score += 25;
         }
 
         if (score > bestCandidateScore || bestCandidateScore === -1) {
           bestCandidateScore = score;
-          title = pTitle;
-          description = pTagline;
+          title = pTitleRaw || pTitle;
+          if (pTagline) description = pTagline;
+          if (pCat) category = pCat;
           images.length = 0;
           if (pImg) images.push(upgradeImageUrl(pImg, rawUrl));
-          price = 299;
-          originalPrice = 349;
-          discountStr = "14% OFF";
-          category = "Health & Wellness Products";
+          if (price === 0) {
+            price = 299;
+            originalPrice = 349;
+            discountStr = "14% OFF";
+          }
         }
       }
     }
@@ -646,7 +662,7 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
 
     for (const img of extractedMedia.images) {
       const baseKey = img.replace(/\?.*$/, "").toLowerCase();
-      if (!images.some(existing => existing.replace(/\?.*$/, "").toLowerCase() === baseKey)) {
+      if (isImageRelevantToProduct(img, title || slugTitle) && !images.some(existing => existing.replace(/\?.*$/, "").toLowerCase() === baseKey)) {
         images.push(img);
       }
     }
@@ -1083,10 +1099,16 @@ export async function scrapeSingleProduct(productUrl: string): Promise<{ success
       images.push(fallbackImg);
     }
 
-    // Clean, upgrade and dedup images
-    const finalImages = Array.from(new Set(images.map(img => upgradeImageUrl(img, rawUrl)).filter(isValidProductImage)));
+    // Clean, upgrade and dedup images strictly relevant to this product
+    let finalImages = Array.from(
+      new Set(
+        images
+          .map(img => upgradeImageUrl(img, rawUrl))
+          .filter(img => isValidProductImage(img) && isImageRelevantToProduct(img, title))
+      )
+    );
     if (finalImages.length === 0) {
-      finalImages.push(getCategoryFallbackImage(category, title));
+      finalImages = [getCategoryFallbackImage(category, title)];
     }
 
     const primaryImage = finalImages[0];
