@@ -11,7 +11,7 @@ import {
   RefreshCw, CheckCircle2, LineChart
 } from "lucide-react";
 import AdminHeader from "@/components/layout/AdminHeader";
-import { verifyAdminSession, loginAsAdminAction, impersonateSellerAction } from "@/lib/admin-actions";
+import { verifyAdminSession, impersonateSellerAction } from "@/lib/admin-actions";
 import { UserSession } from "@/lib/auth-actions";
 
 export default function AdminLayout({
@@ -33,20 +33,17 @@ export default function AdminLayout({
         if (res.isAdmin && res.user) {
           setUserSession(res.user);
         } else {
-          // Attempt automatic elevation / session retrieval
-          const autoRes = await loginAsAdminAction();
-          if (autoRes.success && autoRes.user) {
-            setUserSession(autoRes.user);
-          }
+          router.push("/login");
         }
       } catch (err) {
         console.error("Admin auth check error:", err);
+        router.push("/login");
       } finally {
         setIsCheckingAuth(false);
       }
     }
     checkAuth();
-  }, []);
+  }, [router]);
 
   const navItems = [
     { name: "Executive Dashboard", href: "/admin", icon: LayoutDashboard },

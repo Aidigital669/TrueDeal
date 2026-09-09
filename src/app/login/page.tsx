@@ -5,11 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Mail, Lock, ArrowRight, Loader2, Store, 
-  ShoppingBag, Eye, EyeOff, Sparkles, CheckCircle2, ShieldCheck 
+  ShoppingBag, Eye, EyeOff, Sparkles, CheckCircle2 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { loginUserAction, loginAsAnvReealtyAction } from "@/lib/auth-actions";
-import { loginAsAdminAction } from "@/lib/admin-actions";
+import { loginUserAction } from "@/lib/auth-actions";
 
 function LoginFormContent() {
   const searchParams = useSearchParams();
@@ -126,15 +125,17 @@ function LoginFormContent() {
           {/* Login Form */}
           <form className="space-y-4" onSubmit={handleLogin}>
             
-            {/* Email Field */}
+            {/* Email / ID Field */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-700">
-                {accountType === "seller" ? "Seller Work Email" : "Customer Email Address"}
+                {accountType === "seller" ? "Seller Work Email" : "Email Address or User ID"}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input 
-                  type="email" 
+                  type="text" 
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   placeholder={accountType === "seller" ? "seller@company.com" : "customer@truedeal.in"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -187,34 +188,12 @@ function LoginFormContent() {
                 </>
               ) : (
                 <>
-                  Sign In as {accountType === "seller" ? "Seller" : "Customer"} <ArrowRight className="w-4 h-4 ml-1" />
+                  Sign In to Account <ArrowRight className="w-4 h-4 ml-1" />
                 </>
               )}
             </Button>
             
           </form>
-
-          {/* 1-Click Super Admin Access */}
-          <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col items-center">
-            <button
-              type="button"
-              onClick={async () => {
-                setLoading(true);
-                const res = await loginAsAdminAction();
-                if (res.success && res.redirect) {
-                  router.push(res.redirect);
-                  router.refresh();
-                } else {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading}
-              className="w-full py-2.5 px-3 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:shadow-indigo-500/10"
-            >
-              <ShieldCheck className="w-4 h-4 text-indigo-400" />
-              <span>1-Click Super Admin Control Panel</span>
-            </button>
-          </div>
 
         </div>
 
