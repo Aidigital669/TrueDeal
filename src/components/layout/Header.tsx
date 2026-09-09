@@ -269,7 +269,29 @@ export function Header({
               </Link>
             )}
 
-            <div className="py-1">
+            <div className="py-1 space-y-1">
+              {currentUser?.role === "admin" && (
+                <Link 
+                  href="/admin" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full flex items-center gap-2.5 bg-indigo-50 text-indigo-700 px-4 py-3 rounded-xl text-xs font-bold transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                  <span>Master Admin Suite</span>
+                </Link>
+              )}
+
+              {(currentUser?.role === "seller" || currentUser?.role === "admin") && (
+                <Link 
+                  href="/dashboard" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full flex items-center gap-2.5 bg-amber-50/70 text-amber-900 px-4 py-3 rounded-xl text-xs font-bold transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4 text-amber-500" />
+                  <span>Seller Portal Dashboard</span>
+                </Link>
+              )}
+
               <button 
                 onClick={() => {
                   if (onOpenWishlist) onOpenWishlist();

@@ -79,7 +79,7 @@ function LoginFormContent() {
         </div>
 
         {/* Main Authentication Card */}
-        <div className="w-full bg-white rounded-3xl shadow-xl shadow-indigo-500/5 border border-gray-200/90 p-6 sm:p-8 backdrop-blur-md">
+        <div className="w-full bg-white rounded-3xl shadow-xl shadow-indigo-500/5 border border-gray-200/90 p-5 sm:p-8 backdrop-blur-md">
           
           {/* Account Type Switcher */}
           <div className="flex items-center p-1 bg-gray-100 border border-gray-200 rounded-2xl mb-6">
@@ -89,13 +89,14 @@ function LoginFormContent() {
                 setAccountType("customer");
                 setErrorMessage("");
               }}
-              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2 sm:py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
                 accountType === "customer" 
                   ? "bg-white text-indigo-900 shadow-sm border border-gray-200/80 font-black" 
                   : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              <ShoppingBag className="w-3.5 h-3.5 text-indigo-600" /> Customer Sign In
+              <ShoppingBag className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="truncate">Customer Sign In</span>
             </button>
 
             <button
@@ -104,13 +105,14 @@ function LoginFormContent() {
                 setAccountType("seller");
                 setErrorMessage("");
               }}
-              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2 sm:py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
                 accountType === "seller" 
                   ? "bg-white text-indigo-900 shadow-sm border border-gray-200/80 font-black" 
                   : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              <Store className="w-3.5 h-3.5 text-indigo-600" /> Seller Portal
+              <Store className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="truncate">Seller Portal</span>
             </button>
           </div>
 

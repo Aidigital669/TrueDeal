@@ -6,13 +6,19 @@ import { useRouter } from "next/navigation";
 import { 
   ShieldCheck, Activity, Bell, ExternalLink, 
   Store, LogOut, RefreshCw, Sparkles, CheckCircle2,
-  ChevronDown, Database, Search
+  ChevronDown, Database, Search, Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logoutUserAction, UserSession } from "@/lib/auth-actions";
 import { getAdminSystemStatusAction, runAdminMaintenanceAction } from "@/lib/admin-actions";
 
-export default function AdminHeader({ user }: { user?: UserSession | null }) {
+export default function AdminHeader({ 
+  user,
+  onToggleMobileSidebar 
+}: { 
+  user?: UserSession | null;
+  onToggleMobileSidebar?: () => void;
+}) {
   const [dbStatus, setDbStatus] = useState<{ status: string; pingMs: number; databaseName: string }>({
     status: "HEALTHY",
     pingMs: 14,
@@ -88,7 +94,17 @@ export default function AdminHeader({ user }: { user?: UserSession | null }) {
     <header className="h-16 bg-[#0f1117] border-b border-gray-800/80 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 font-sans shadow-md backdrop-blur-md">
       
       {/* Left: Brand Identity & Database Telemetry */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
+        {onToggleMobileSidebar && (
+          <button 
+            type="button"
+            onClick={onToggleMobileSidebar}
+            className="lg:hidden p-2 rounded-xl text-gray-300 hover:text-white bg-gray-900 hover:bg-gray-800 border border-gray-800 transition-colors flex items-center justify-center cursor-pointer shrink-0"
+            title="Open Admin Navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span className="font-mono">{dbStatus.databaseName}</span>

@@ -7,7 +7,8 @@ import {
   Search, Shield, Plus, ExternalLink, Check, CheckCircle2, 
   Store, Box, Settings, LogOut, Globe, Sparkles, AlertCircle,
   HelpCircle, MessageSquare, Phone, User, ChevronDown, Building2,
-  FileText, ShieldCheck, ArrowRight, X, PanelLeftClose, PanelLeftOpen
+  FileText, ShieldCheck, ArrowRight, X, PanelLeftClose, PanelLeftOpen,
+  Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentUserSession, UserSession } from "@/lib/auth-actions";
@@ -15,9 +16,14 @@ import { getCurrentUserSession, UserSession } from "@/lib/auth-actions";
 interface SellerHeaderProps {
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  onToggleMobileSidebar?: () => void;
 }
 
-export default function SellerHeader({ isSidebarCollapsed = false, onToggleSidebar }: SellerHeaderProps) {
+export default function SellerHeader({ 
+  isSidebarCollapsed = false, 
+  onToggleSidebar,
+  onToggleMobileSidebar 
+}: SellerHeaderProps) {
   const router = useRouter();
   
   // Session State
@@ -83,15 +89,25 @@ export default function SellerHeader({ isSidebarCollapsed = false, onToggleSideb
   };
 
   return (
-    <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 lg:px-8 flex-shrink-0 z-30 shadow-sm font-sans relative">
+    <header className="h-16 sm:h-20 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-6 lg:px-8 flex-shrink-0 z-30 shadow-sm font-sans relative">
       
       {/* Left: Sidebar Toggle, Title & Quick Search */}
-      <div className="flex items-center gap-4 sm:gap-6 lg:gap-8">
+      <div className="flex items-center gap-2.5 sm:gap-4 lg:gap-8 min-w-0">
+        {onToggleMobileSidebar && (
+          <button 
+            type="button"
+            onClick={onToggleMobileSidebar}
+            className="lg:hidden p-2 rounded-xl text-gray-700 hover:text-indigo-600 bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center cursor-pointer shrink-0"
+            title="Open Mobile Navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
         {onToggleSidebar && (
           <button 
             type="button"
             onClick={onToggleSidebar}
-            className="p-2.5 rounded-xl text-gray-700 hover:text-indigo-600 bg-white hover:bg-indigo-50/50 transition-all duration-200 border border-gray-200/90 hover:border-indigo-200 shadow-xs active:scale-95 flex items-center justify-center cursor-pointer group"
+            className="hidden lg:flex p-2.5 rounded-xl text-gray-700 hover:text-indigo-600 bg-white hover:bg-indigo-50/50 transition-all duration-200 border border-gray-200/90 hover:border-indigo-200 shadow-xs active:scale-95 items-center justify-center cursor-pointer group shrink-0"
             title={isSidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Full Window Size)"}
           >
             {isSidebarCollapsed ? (
@@ -101,9 +117,9 @@ export default function SellerHeader({ isSidebarCollapsed = false, onToggleSideb
             )}
           </button>
         )}
-        <Link href="/dashboard" className="flex flex-col">
-          <h2 className="text-[16px] lg:text-[18px] font-black text-gray-900 leading-tight tracking-tight hover:text-indigo-600 transition-colors">
-            Marketplace<br />Dashboard
+        <Link href="/dashboard" className="flex flex-col shrink-0">
+          <h2 className="text-[13px] sm:text-[16px] lg:text-[18px] font-black text-gray-900 leading-tight tracking-tight hover:text-indigo-600 transition-colors truncate">
+            Marketplace Dashboard
           </h2>
         </Link>
         
@@ -253,10 +269,11 @@ export default function SellerHeader({ isSidebarCollapsed = false, onToggleSideb
                 setShieldOpen(false);
                 setProfileOpen(false);
               }}
-              className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl px-4 py-2 font-bold text-xs shadow-md shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer h-9"
+              className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl px-2.5 sm:px-4 py-2 font-bold text-xs shadow-md shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer h-9 shrink-0"
             >
               <Plus className="w-3.5 h-3.5 shrink-0" />
-              <span>Create Listing</span>
+              <span className="hidden sm:inline">Create Listing</span>
+              <span className="sm:hidden">Add</span>
               <ChevronDown className="w-3 h-3 opacity-80 shrink-0" />
             </button>
 

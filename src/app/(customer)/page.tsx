@@ -207,34 +207,34 @@ export default function CustomerHome() {
   return (
     <div 
       onMouseMove={handleMouseMove}
-      className="relative flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] w-full px-4 md:px-8 bg-gradient-to-b from-[#FDFBFB] via-[#F7F8FC] to-[#F1F4F9] py-12 lg:py-16 font-sans overflow-hidden"
+      className="relative flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] w-full px-3 sm:px-6 md:px-8 bg-gradient-to-b from-[#FDFBFB] via-[#F7F8FC] to-[#F1F4F9] py-8 sm:py-12 lg:py-16 font-sans overflow-hidden"
     >
       
       {/* ========================================================= */}
       {/* SWEET & EYE-CATCHING FRAMER MOTION ANIMATED BACKGROUND */}
       {/* ========================================================= */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 max-w-full">
         
         {/* Orb 1: Sweet Cotton-Candy Lavender & Pink (Top-Left) */}
         <motion.div
           animate={{
-            x: [0, 80, -40, 0],
-            y: [0, -60, 40, 0],
-            scale: [1, 1.25, 0.95, 1],
+            x: [0, 60, -30, 0],
+            y: [0, -40, 30, 0],
+            scale: [1, 1.2, 0.95, 1],
           }}
           transition={{
             duration: 18,
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="absolute -top-24 -left-20 w-[550px] h-[550px] bg-gradient-to-tr from-pink-300/40 via-purple-300/35 to-indigo-200/30 rounded-full blur-[90px] mix-blend-multiply"
+          className="absolute -top-20 -left-16 w-[320px] sm:w-[500px] h-[320px] sm:h-[500px] bg-gradient-to-tr from-pink-300/40 via-purple-300/35 to-indigo-200/30 rounded-full blur-[70px] sm:blur-[90px] mix-blend-multiply"
         />
 
         {/* Orb 2: Sweet Sunset Peach & Honey Gold (Top-Right) */}
         <motion.div
           animate={{
-            x: [0, -70, 50, 0],
-            y: [0, 60, -40, 0],
+            x: [0, -50, 40, 0],
+            y: [0, 40, -30, 0],
             scale: [1.1, 0.9, 1.2, 1.1],
           }}
           transition={{
@@ -243,14 +243,14 @@ export default function CustomerHome() {
             ease: "easeInOut",
             delay: 1.5,
           }}
-          className="absolute -top-20 -right-20 w-[500px] h-[500px] bg-gradient-to-bl from-amber-300/40 via-rose-300/35 to-orange-200/30 rounded-full blur-[85px] mix-blend-multiply"
+          className="absolute -top-16 -right-16 w-[300px] sm:w-[480px] h-[300px] sm:h-[480px] bg-gradient-to-bl from-amber-300/40 via-rose-300/35 to-orange-200/30 rounded-full blur-[70px] sm:blur-[85px] mix-blend-multiply"
         />
 
         {/* Orb 3: Sweet Mint & Sky Cyan Wave (Bottom-Left) */}
         <motion.div
           animate={{
-            x: [0, 60, -60, 0],
-            y: [0, -50, 50, 0],
+            x: [0, 40, -40, 0],
+            y: [0, -30, 40, 0],
             scale: [0.95, 1.2, 0.9, 0.95],
           }}
           transition={{
@@ -259,15 +259,15 @@ export default function CustomerHome() {
             ease: "easeInOut",
             delay: 3,
           }}
-          className="absolute -bottom-24 -left-20 w-[600px] h-[600px] bg-gradient-to-br from-teal-300/40 via-cyan-300/35 to-emerald-200/30 rounded-full blur-[100px] mix-blend-multiply"
+          className="absolute -bottom-20 -left-16 w-[340px] sm:w-[550px] h-[340px] sm:h-[550px] bg-gradient-to-br from-teal-300/40 via-cyan-300/35 to-emerald-200/30 rounded-full blur-[75px] sm:blur-[100px] mix-blend-multiply"
         />
 
         {/* Orb 4: Sweet Radiant Violet Beam (Center/Bottom-Right) */}
         <motion.div
           animate={{
-            x: [0, -80, 40, 0],
-            y: [0, 40, -60, 0],
-            scale: [1, 1.3, 1],
+            x: [0, -60, 30, 0],
+            y: [0, 30, -50, 0],
+            scale: [1, 1.25, 1],
           }}
           transition={{
             duration: 19,
@@ -275,7 +275,7 @@ export default function CustomerHome() {
             ease: "easeInOut",
             delay: 2,
           }}
-          className="absolute bottom-[-10%] right-[-5%] w-[550px] h-[550px] bg-gradient-to-tl from-indigo-400/35 via-violet-300/30 to-fuchsia-200/25 rounded-full blur-[95px] mix-blend-multiply"
+          className="absolute bottom-[-5%] right-[-5%] w-[320px] sm:w-[500px] h-[320px] sm:h-[500px] bg-gradient-to-tl from-indigo-400/35 via-violet-300/30 to-fuchsia-200/25 rounded-full blur-[75px] sm:blur-[95px] mix-blend-multiply"
         />
 
         {/* Interactive Mouse Follower Glow Spotlight */}
@@ -284,7 +284,7 @@ export default function CustomerHome() {
             x: springX,
             y: springY,
           }}
-          className="absolute -top-36 -left-36 w-72 h-72 bg-gradient-to-r from-pink-400/20 via-indigo-400/20 to-cyan-400/20 rounded-full blur-[60px] pointer-events-none -translate-x-1/2 -translate-y-1/2"
+          className="hidden md:block absolute -top-36 -left-36 w-72 h-72 bg-gradient-to-r from-pink-400/20 via-indigo-400/20 to-cyan-400/20 rounded-full blur-[60px] pointer-events-none -translate-x-1/2 -translate-y-1/2"
         />
 
         {/* Floating Twinkling Star Sparkles */}
@@ -293,7 +293,7 @@ export default function CustomerHome() {
             key={idx}
             style={{ top: star.top, left: star.left, right: star.right }}
             animate={{
-              y: [0, -18, 0],
+              y: [0, -14, 0],
               opacity: [0.3, 0.9, 0.3],
               scale: [0.8, 1.2, 0.8],
               rotate: [0, 180, 360],
@@ -324,30 +324,30 @@ export default function CustomerHome() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="mb-6"
+          className="mb-4 sm:mb-6"
         >
           {/* Sweet Pill Badge */}
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 hover:bg-white border border-indigo-100 shadow-sm text-indigo-700 text-xs font-black mb-4 backdrop-blur-md cursor-pointer transition-all"
+            className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-white/80 hover:bg-white border border-indigo-100 shadow-sm text-indigo-700 text-xs font-black mb-3 sm:mb-4 backdrop-blur-md cursor-pointer transition-all"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
             </span>
-            <span className="tracking-wide">AI Smart Search & Discovery</span>
+            <span className="tracking-wide text-[11px] sm:text-xs">AI Smart Search & Discovery</span>
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           </motion.div>
 
           {/* Sweet Heading with Multi-Color Gradient */}
-          <h1 className="text-3xl sm:text-5xl lg:text-[52px] font-black tracking-tight text-gray-900 font-sans leading-[1.12]">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-[52px] font-black tracking-tight text-gray-900 font-sans leading-[1.2] sm:leading-[1.12]">
             AI Based Search{" "}
-            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent drop-shadow-xs">
+            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent drop-shadow-xs block sm:inline mt-1 sm:mt-0">
               Your Products and Services
             </span>
           </h1>
 
-          <p className="mt-3 text-sm sm:text-base text-gray-600 max-w-2xl mx-auto font-medium">
+          <p className="mt-2.5 sm:mt-3 text-xs sm:text-sm md:text-base text-gray-600 max-w-2xl mx-auto font-medium px-2">
             Search physical products, professional services, commercial & residential properties across India with intelligent natural language AI.
           </p>
         </motion.div>
@@ -357,7 +357,7 @@ export default function CustomerHome() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full space-y-4 mb-6 text-left max-h-[520px] overflow-y-auto p-4 md:p-6 rounded-3xl bg-white/90 border border-indigo-100/90 shadow-xl shadow-indigo-500/5 backdrop-blur-2xl custom-scrollbar"
+            className="w-full space-y-3 sm:space-y-4 mb-4 sm:mb-6 text-left max-h-[60vh] sm:max-h-[520px] overflow-y-auto p-3 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-white/90 border border-indigo-100/90 shadow-xl shadow-indigo-500/5 backdrop-blur-2xl custom-scrollbar"
           >
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
@@ -377,9 +377,9 @@ export default function CustomerHome() {
             {messages.map((m, idx) => (
               <div 
                 key={idx}
-                className={`p-4 rounded-2xl text-xs font-semibold leading-relaxed transition-all ${
+                className={`p-3.5 sm:p-4 rounded-2xl text-xs font-semibold leading-relaxed transition-all ${
                   m.role === "user" 
-                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white ml-auto max-w-[80%] shadow-md shadow-indigo-600/20" 
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white ml-auto max-w-[92%] sm:max-w-[80%] shadow-md shadow-indigo-600/20" 
                     : "bg-indigo-50/70 border border-indigo-100 text-gray-900 mr-auto w-full"
                 }`}
               >
@@ -714,12 +714,12 @@ export default function CustomerHome() {
           <div className="absolute -inset-1 bg-gradient-to-r from-pink-500/30 via-purple-500/30 to-cyan-500/30 rounded-[32px] blur-lg opacity-60 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-500" />
 
           {/* Frosted Glass Input Container */}
-          <div className="relative bg-white/90 hover:bg-white/95 transition-all duration-300 rounded-3xl flex flex-col p-4 shadow-xl shadow-indigo-500/10 border border-white/90 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 backdrop-blur-2xl">
+          <div className="relative bg-white/95 hover:bg-white transition-all duration-300 rounded-2xl sm:rounded-3xl flex flex-col p-3 sm:p-4 shadow-xl shadow-indigo-500/10 border border-white/90 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 backdrop-blur-2xl">
             
             {/* Input Field */}
             <textarea 
               rows={2}
-              placeholder="Ask AI Assistant: e.g. Show commercial offices in Pune under ₹5 Cr, Gaming laptops with RTX GPU, Ayurvedic hair oils, IT consulting services..."
+              placeholder="Ask TrueDeal AI: e.g. Commercial offices in Pune, Ayurmor soup, Laptops, IT services..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -728,11 +728,11 @@ export default function CustomerHome() {
                   handleSend();
                 }
               }}
-              className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-sm font-medium text-gray-900 px-2 py-1 placeholder:text-gray-400 resize-none font-sans"
+              className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-xs sm:text-sm font-medium text-gray-900 px-1 sm:px-2 py-1 placeholder:text-gray-400 resize-none font-sans"
             />
 
             {/* Bottom Actions Row */}
-            <div className="flex items-center justify-between mt-2 px-1">
+            <div className="flex items-center justify-between mt-1.5 sm:mt-2 px-1">
               <div className="flex items-center gap-1.5">
                 <Button 
                   type="button"
@@ -760,9 +760,9 @@ export default function CustomerHome() {
                 type="button"
                 onClick={() => handleSend()}
                 disabled={searching || !query.trim()}
-                className="bg-gradient-to-tr from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-30 text-white rounded-full h-9 w-9 transition-all flex items-center justify-center shadow-md shadow-indigo-600/30 hover:scale-105 active:scale-95 cursor-pointer font-bold"
+                className="bg-gradient-to-tr from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-30 text-white rounded-full h-8 w-8 sm:h-9 sm:w-9 transition-all flex items-center justify-center shadow-md shadow-indigo-600/30 hover:scale-105 active:scale-95 cursor-pointer font-bold"
               >
-                <ArrowUp className="w-4 h-4 stroke-[3]" />
+                <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
               </button>
             </div>
           </div>
@@ -773,7 +773,7 @@ export default function CustomerHome() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-3xl text-left font-sans"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 w-full max-w-3xl text-left font-sans"
         >
           <SuggestionCard 
             icon={<Sparkles className="w-3.5 h-3.5 text-emerald-600" />} 
@@ -831,31 +831,31 @@ function SuggestionCard({
 }) {
   return (
     <motion.div 
-      whileHover={{ y: -2, scale: 1.015 }}
+      whileHover={{ y: -2, scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="flex items-center justify-between gap-3 bg-white/90 hover:bg-white border border-gray-100/90 hover:border-indigo-300 px-3.5 py-2.5 rounded-2xl cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md hover:shadow-indigo-500/10 group backdrop-blur-md relative overflow-hidden"
+      className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/80 hover:bg-white border border-gray-200/80 hover:border-indigo-300 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
     >
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <div className="p-1.5 rounded-xl bg-gray-50 border border-gray-100 group-hover:bg-indigo-50 group-hover:border-indigo-200 transition-colors shrink-0">
+      <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gray-50 group-hover:bg-indigo-50 flex items-center justify-center transition-colors">
           {icon}
         </div>
-        <div className="flex flex-col min-w-0">
-          <span className="font-bold text-gray-900 group-hover:text-indigo-600 text-xs tracking-tight transition-colors truncate">
-            {title}
+        {badge && (
+          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeColor || "bg-gray-50 text-gray-700 border-gray-200"}`}>
+            {badge}
           </span>
-          {subtitle && (
-            <span className="text-gray-400 text-[10px] font-medium truncate">
-              {subtitle}
-            </span>
-          )}
-        </div>
+        )}
       </div>
-      {badge && (
-        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0 ${badgeColor}`}>
-          {badge}
-        </span>
-      )}
+      <div>
+        <h3 className="font-extrabold text-xs sm:text-[13px] text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+          {title}
+        </h3>
+        {subtitle && (
+          <p className="text-[10px] sm:text-[11px] font-semibold text-gray-500 mt-0.5 line-clamp-1">
+            {subtitle}
+          </p>
+        )}
+      </div>
     </motion.div>
   );
 }

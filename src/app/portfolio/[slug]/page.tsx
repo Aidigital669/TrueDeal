@@ -179,37 +179,38 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
 
   return (
     <div className="min-h-screen bg-[#F3F2EE] text-gray-900 font-sans antialiased selection:bg-[#0A66C2] selection:text-white pb-20">
-      
-      {/* LinkedIn-Style Top Global Header */}
+           {/* LinkedIn-Style Top Global Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2 sm:gap-4">
           
           {/* Left: Brand Identity & Conditional Back Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isSellerOwner ? (
               <Link 
                 href="/dashboard"
-                className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border border-slate-700 shadow-sm shrink-0 active:scale-95"
+                className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border border-slate-700 shadow-sm shrink-0 active:scale-95"
                 title="Return to Seller Dashboard"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Dashboard</span>
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
               </Link>
             ) : (
               <Link 
                 href="/"
                 onClick={handleCustomerBack}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-900 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border border-indigo-200 shadow-sm shrink-0 active:scale-95 group cursor-pointer"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-900 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border border-indigo-200 shadow-sm shrink-0 active:scale-95 group cursor-pointer"
                 title="Return to TrueDeal AI Search & Discovery"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-indigo-600 group-hover:-translate-x-0.5 transition-transform" />
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Back to AI Chat</span>
+                <span className="hidden sm:inline">Back to AI Chat</span>
+                <span className="sm:hidden">Chat</span>
               </Link>
             )}
 
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#0A66C2] text-white flex items-center justify-center font-black text-sm">
+              <div className="w-8 h-8 rounded-lg bg-[#0A66C2] text-white flex items-center justify-center font-black text-sm shrink-0">
                 TD
               </div>
               <span className="font-extrabold text-base text-gray-900 tracking-tight hidden sm:inline">TrueDeal</span>
@@ -222,7 +223,7 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
           <div className="relative hidden md:flex items-center flex-1 max-w-md mx-4">
             <Search className="absolute left-3 w-4 h-4 text-gray-400" />
             <input 
-              type="text"
+              type="text" 
               placeholder={`Search in ${portfolio.companyName} catalog...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -231,22 +232,23 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
           </div>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button 
               onClick={copyPageUrl}
-              className="px-3 py-1.5 rounded-full border border-gray-300 hover:bg-gray-100 text-xs font-bold text-gray-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 rounded-full border border-gray-300 hover:bg-gray-100 text-xs font-bold text-gray-700 flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
-              {copiedUrl ? "Copied!" : "Share"}
+              <span className="hidden sm:inline">{copiedUrl ? "Copied!" : "Share"}</span>
             </button>
             {whatsappUrl && (
               <a 
                 href={whatsappUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="bg-[#0A66C2] hover:bg-[#004182] text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                className="bg-[#0A66C2] hover:bg-[#004182] text-white px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
               >
-                <MessageSquare className="w-3.5 h-3.5" /> Message
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Message</span>
               </a>
             )}
           </div>
@@ -262,7 +264,7 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
         <section className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           
           {/* Wide Cover Banner */}
-          <div className="relative w-full h-44 sm:h-60 lg:h-64 bg-gradient-to-r from-slate-800 via-indigo-950 to-slate-900 overflow-hidden">
+          <div className="relative w-full h-36 sm:h-56 lg:h-64 bg-gradient-to-r from-slate-800 via-indigo-950 to-slate-900 overflow-hidden">
             {portfolio.bannerImage ? (
               <img 
                 src={portfolio.bannerImage} 
@@ -271,27 +273,28 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-r from-indigo-900 via-blue-900 to-slate-900 flex items-center justify-center">
-                <span className="text-white/20 text-3xl font-black tracking-widest uppercase select-none">{portfolio.companyName}</span>
+                <span className="text-white/20 text-2xl sm:text-3xl font-black tracking-widest uppercase select-none px-4 text-center">{portfolio.companyName}</span>
               </div>
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
             
             {/* Top Right Registration Badge (Strictly conditional from database) */}
             {portfolio.gstin && (
-              <div className="absolute top-4 right-4 flex items-center gap-2">
-                <span className="bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full border border-white/20 flex items-center gap-1 shadow-sm">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> GSTIN / Reg: {portfolio.gstin}
+              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex items-center gap-2">
+                <span className="bg-black/60 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 sm:px-3 py-1 rounded-full border border-white/20 flex items-center gap-1 shadow-sm">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> 
+                  <span className="hidden sm:inline">GSTIN / Reg:</span> {portfolio.gstin}
                 </span>
               </div>
             )}
           </div>
 
           {/* Profile Header Body */}
-          <div className="px-6 sm:px-8 pb-6 pt-0 relative">
+          <div className="px-4 sm:px-8 pb-6 pt-0 relative">
             
-            {/* Floating Company Avatar */}
-            <div className="flex justify-between items-end -mt-14 sm:-mt-16 mb-4">
-              <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-white border-4 border-white shadow-xl overflow-hidden flex items-center justify-center shrink-0">
+            {/* Floating Company Avatar & Actions */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end items-start gap-3 -mt-10 sm:-mt-16 mb-4">
+              <div className="relative w-20 h-20 sm:w-32 sm:h-32 rounded-2xl bg-white border-4 border-white shadow-xl overflow-hidden flex items-center justify-center shrink-0">
                 {portfolio.logo ? (
                   <img 
                     src={portfolio.logo} 
@@ -299,22 +302,23 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
                     className="w-full h-full object-contain p-1"
                   />
                 ) : (
-                  <div className="w-full h-full bg-indigo-600 text-white font-black text-2xl sm:text-3xl flex items-center justify-center">
+                  <div className="w-full h-full bg-indigo-600 text-white font-black text-xl sm:text-3xl flex items-center justify-center">
                     {(portfolio.companyName || "TD").slice(0, 2).toUpperCase()}
                   </div>
                 )}
               </div>
 
               {/* Action Buttons on Right */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 {whatsappUrl && (
                   <a 
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex-1 sm:flex-initial"
                   >
                     <Button
-                      className="rounded-full px-4 sm:px-5 h-9 text-xs font-bold bg-[#0A66C2] text-white hover:bg-[#004182] flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      className="w-full sm:w-auto rounded-full px-4 sm:px-5 h-9 text-xs font-bold bg-[#0A66C2] text-white hover:bg-[#004182] flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
                     >
                       <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                     </Button>
@@ -322,10 +326,10 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
                 )}
 
                 {portfolio.phone && (
-                  <a href={`tel:${portfolio.phone}`}>
+                  <a href={`tel:${portfolio.phone}`} className="flex-1 sm:flex-initial">
                     <Button
                       variant="outline"
-                      className="rounded-full px-3.5 h-9 text-xs font-bold text-gray-700 border-gray-300 hover:bg-gray-50 flex items-center gap-1 cursor-pointer"
+                      className="w-full sm:w-auto rounded-full px-3.5 h-9 text-xs font-bold text-gray-700 border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Phone className="w-3.5 h-3.5 text-emerald-600" /> Call
                     </Button>
@@ -333,12 +337,12 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
                 )}
 
                 {portfolio.website && (
-                  <a href={portfolio.website} target="_blank" rel="noopener noreferrer">
+                  <a href={portfolio.website} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                     <Button
                       variant="outline"
-                      className="rounded-full px-3.5 h-9 text-xs font-bold text-gray-700 border-gray-300 hover:bg-gray-50 flex items-center gap-1 cursor-pointer"
+                      className="w-full sm:w-auto rounded-full px-3.5 h-9 text-xs font-bold text-gray-700 border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" /> Official Website
+                      <ExternalLink className="w-3.5 h-3.5" /> <span className="truncate">Official Website</span>
                     </Button>
                   </a>
                 )}

@@ -142,7 +142,7 @@ function SignupFormContent() {
         </div>
 
         {/* Right Side: Form Panel */}
-        <div className="lg:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
+        <div className="lg:col-span-7 p-5 sm:p-10 lg:p-12 flex flex-col justify-center">
           
           <div className="w-full max-w-lg mx-auto">
             
@@ -159,18 +159,18 @@ function SignupFormContent() {
             {errorMessage && (
               <div className="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2 animate-in fade-in">
                 <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
-                {errorMessage}
+                <span>{errorMessage}</span>
               </div>
             )}
 
             {/* Account Type Selection Tabs */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mb-6">
               
               {/* Seller Card */}
               <button 
                 type="button"
                 onClick={() => setAccountType("seller")}
-                className={`text-left p-3.5 sm:p-4 rounded-2xl border-2 transition-all duration-200 relative ${
+                className={`text-left p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 relative cursor-pointer ${
                   accountType === "seller" 
                     ? "border-[#4F46E5] bg-indigo-50/70 shadow-sm ring-1 ring-indigo-500/20" 
                     : "border-gray-200 hover:border-gray-300 bg-white"
@@ -192,7 +192,7 @@ function SignupFormContent() {
               <button 
                 type="button"
                 onClick={() => setAccountType("customer")}
-                className={`text-left p-3.5 sm:p-4 rounded-2xl border-2 transition-all duration-200 relative ${
+                className={`text-left p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 relative cursor-pointer ${
                   accountType === "customer" 
                     ? "border-[#4F46E5] bg-indigo-50/70 shadow-sm ring-1 ring-indigo-500/20" 
                     : "border-gray-200 hover:border-gray-300 bg-white"
