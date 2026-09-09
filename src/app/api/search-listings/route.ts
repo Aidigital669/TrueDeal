@@ -35,7 +35,10 @@ const STOPWORDS = new Set([
   "can", "you", "tell", "about", "what", "are", "do", "does", "have", "some", "any", "from",
   "who", "where", "when", "why", "how", "much", "many", "price", "prices", "cost", "costs",
   "rate", "rates", "buy", "sell", "selling", "available", "availability", "detail", "details",
-  "info", "information", "product", "products", "item", "items", "i", "my", "we", "our"
+  "info", "information", "product", "products", "item", "items", "i", "my", "we", "our",
+  // Common greetings as stopwords so they don't corrupt product searches
+  "hi", "hii", "hiii", "hello", "helloo", "hey", "heyy", "hlo", "hye", "namaste", "namaskar",
+  "pranam", "vanakkam", "morning", "afternoon", "evening", "greetings", "sup", "yo", "good"
 ]);
 
 const GENERIC_SEARCH_WORDS = new Set([
@@ -43,7 +46,8 @@ const GENERIC_SEARCH_WORDS = new Set([
   "all", "inventory", "things", "buy", "sell", "available", "offerings", "services"
 ]);
 
-const GREETING_REGEX = /^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|howdy|hola|namaste|what\s+is\s+truedeal|who\s+are\s+you|help|what\s+can\s+you\s+do|start)[\s!?.]*$/i;
+// Matches any casual greeting (hi, hii, hiii, hello, heyy, good morning, namaste, etc.)
+const GREETING_REGEX = /^(h+[ie]+y*|h+e+l+l*o+|h+l+o+|greetings|good\s+(morning|afternoon|evening)|howdy|hola|namaste|namaskar|pranam|vanakkam|salaam|what\s+is\s+truedeal|who\s+are\s+you|help|what\s+can\s+you\s+do|start|sup|yo)[\s!?.]*$/i;
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -65,14 +69,32 @@ export async function POST(req: Request) {
       });
     }
 
-    const lowerQuery = query.toLowerCase();
-    const isGreeting = GREETING_REGEX.test(query.trim());
+    const lowerQuery = query.toLowerCase().trim();
+    const isGreeting = GREETING_REGEX.test(lowerQuery);
+
+    // Warm, instant TrueDeal Marketplace greeting (Never impersonate a single seller on greeting)
+    if (isGreeting) {
+      return NextResponse.json({
+        success: true,
+        query,
+        text: "Hello! Welcome to **TrueDeal** — your direct marketplace for verified businesses, products, and commercial properties. How can I help you today?\n\nYou can search for:\n• **Verified Products**: *Ayurmor Moringa soups, organic skincare, wellness supplements*\n• **Commercial Real Estate**: *Grade-A offices, retail showrooms, and IT park spaces in Pune*\n• **Direct Sellers**: *Connect directly with manufacturers and verified business owners without middlemen*\n\nWhat are you looking for today?",
+        appliedFilters: ["✨ TrueDeal AI", "🇮🇳 Verified Marketplace", "🤝 Direct Deals", "⚡ 100% Genuine"],
+        suggestedFollowUps: [
+          "🏢 Commercial Properties in Pune",
+          "🍲 Ayurmor Moringa Soup & Wellness",
+          "🧼 PurePlush Organic Skincare",
+          "🔍 How does TrueDeal work?"
+        ],
+        listings: [],
+        companyProfile: null
+      });
+    }
 
     const rawTokens = lowerQuery.split(/[^\w\d]+/).filter(Boolean);
     const searchTokens = rawTokens.filter(t => t.length >= 2 && !STOPWORDS.has(t));
     const fallbackTokens = searchTokens.length > 0 ? searchTokens : rawTokens.filter(t => t.length >= 2);
 
-    const isGenericQuery = isGreeting || 
+    const isGenericQuery = 
       searchTokens.length === 0 || 
       searchTokens.every(t => GENERIC_SEARCH_WORDS.has(t)) ||
       lowerQuery.includes("all products") ||
@@ -83,11 +105,9 @@ export async function POST(req: Request) {
 
     // 1. Natural language intent parsing with AI
     let parsedIntent: any = { intent: "search_products", keywords: fallbackTokens };
-    if (!isGreeting) {
-      try {
-        parsedIntent = await parseSearchIntentWithGemini(query);
-      } catch {}
-    }
+    try {
+      parsedIntent = await parseSearchIntentWithGemini(query);
+    } catch {}
 
     // Clean extracted keywords against stopwords
     const cleanAiKeywords = (parsedIntent.keywords || [])
@@ -220,10 +240,10 @@ export async function POST(req: Request) {
           }
         }
 
-        // 2b. Accurately resolve Company Profile Showcase (if query specifically targets a company or all top products belong to one seller)
-        const isExplicitAnv = /(anv|reealty|anvrealty|anv real)/i.test(lowerQuery);
-        const isExplicitAyurmor = /(ayurmor|saish|technofarms)/i.test(lowerQuery);
-        const isExplicitPureplush = /(pureplush|pureplus|pure plush)/i.test(lowerQuery);
+        // 2b. Accurately resolve Company Profile Showcase (ONLY if query specifically inquires about a company/brand)
+        const isExplicitAnv = /(anv\s*reealty|anv\s*realty|anv real estate|\banv\b)/i.test(lowerQuery);
+        const isExplicitAyurmor = /(ayurmor|saish\s*technofarms|saish\s*techno)/i.test(lowerQuery);
+        const isExplicitPureplush = /(pureplush|pureplus|pure\s*plush)/i.test(lowerQuery);
 
         let targetCompanySlug: string | null = null;
         if (isExplicitAnv) {
@@ -232,13 +252,6 @@ export async function POST(req: Request) {
           targetCompanySlug = "ayurmor-more";
         } else if (isExplicitPureplush) {
           targetCompanySlug = "pureplush";
-        } else if (dbProducts.length > 0) {
-          // If all top products belong to the same seller, associate that company
-          const firstSlug = dbProducts[0].sellerSlug || dbProducts[0].portfolioSlug;
-          const allSameSeller = dbProducts.slice(0, 4).every(p => (p.sellerSlug || p.portfolioSlug) === firstSlug);
-          if (allSameSeller && firstSlug && firstSlug !== "seller" && firstSlug !== "default") {
-            targetCompanySlug = firstSlug;
-          }
         }
 
         if (targetCompanySlug) {

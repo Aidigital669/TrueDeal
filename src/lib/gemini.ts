@@ -237,11 +237,11 @@ export async function generateGeminiSearchResponse(
   if (companyProfile && isRealEstate) {
     defaultSummary = `Here are the verified commercial properties available from **${companyProfile.name}**${companyProfile.city ? ` in ${companyProfile.city}` : ""}:`;
   } else if (companyProfile) {
-    defaultSummary = `Here are the verified offerings for **${companyProfile.name}**:`;
+    defaultSummary = `Here are the verified offerings from **${companyProfile.name}**:`;
   } else if (candidateListings.length > 0 && isRealEstate) {
-    defaultSummary = `Here are the top commercial properties in Pune matching **"${userQuery}"**:`;
+    defaultSummary = `Here are verified commercial properties on TrueDeal matching **"${userQuery}"**:`;
   } else if (candidateListings.length > 0) {
-    defaultSummary = `Here are the verified listings matching **"${userQuery}"**:`;
+    defaultSummary = `Here are the verified listings on TrueDeal matching **"${userQuery}"**:`;
   } else {
     defaultSummary = `I couldn't find any listings matching "${userQuery}". You can try searching for *"commercial office in Pune"* or *"Ayurmor soup"*.`;
   }
@@ -250,7 +250,7 @@ export async function generateGeminiSearchResponse(
     summaryText: defaultSummary,
     appliedFilters: companyProfile
       ? [`🏢 ${companyProfile.name}`, ...(companyProfile.city ? [`📍 ${companyProfile.city}`] : []), "✨ Verified"]
-      : (isRealEstate ? ["🏢 Commercial Real Estate", "📍 Pune", "✨ Verified"] : ["✨ Verified Catalog"]),
+      : (isRealEstate ? ["🏢 Commercial Real Estate", "📍 Pune", "✨ TrueDeal Verified"] : ["✨ TrueDeal Verified Catalog"]),
     suggestedFollowUps: isRealEstate
       ? [
           "🏢 EON IT Park 140 Desks Office",
@@ -285,21 +285,26 @@ export async function generateGeminiSearchResponse(
     websiteUrl: l.websiteUrl || l.productUrl || ""
   }));
 
-  const systemPrompt = `You are TrueDeal AI Assistant — a friendly, helpful, and concise shopping & property advisor for India.
-Your goal is to answer the user's query in a warm, natural, human-friendly tone, keeping your reply compact and easy to read ("short & sweet").
+  const systemPrompt = `You are TrueDeal AI Assistant — a friendly, helpful, and concise shopping & business advisor on the TrueDeal Direct Marketplace (truedeal.in).
+Your identity is ALWAYS TrueDeal AI. You represent the entire TrueDeal multi-seller marketplace platform in India.
+
+CRITICAL IDENTITY RULES:
+- NEVER claim to be ANV Realty, Ayurmor, PurePlush, or any single merchant.
+- NEVER say "Welcome to ANV Realty" or "I am your property advisor at ANV".
+- If listings are presented, introduce them as: "Here are verified listings on TrueDeal matching your search...".
 
 Guidelines:
 1. Tone: Natural, friendly, human, clear, and direct. Avoid stiff corporate jargon, robotic announcements, or long walls of text.
 2. Structure (Keep it small & scannable):
-   - 1 short, friendly intro sentence acknowledging their search.
-   - 2 to 4 crisp bullet points highlighting the top options found (mention Name, Key Spec e.g. desks/sq.ft/ingredients, Price in ₹ Cr/Lakh/₹, and Location).
-   - 1 quick closing sentence inviting them to check the product cards below or reach out directly.
+   - 1 short, friendly intro sentence acknowledging their search on TrueDeal.
+   - 2 to 4 crisp bullet points highlighting the top options found (mention Name, Key Spec e.g. desks/sq.ft/ingredients, Price in ₹ Cr/Lakh/₹, and Location/Seller).
+   - 1 quick closing sentence inviting them to check the product cards below or connect with sellers directly.
 3. For Commercial Real Estate:
    - Keep details clear and brief (e.g. "• **EON IT Park, Kharadi**: 9,800 sq.ft furnished office with 140 workstations, ₹11.50 Cr").
    - Mention key metrics like ROI (e.g. "• **Baner Showroom**: Pre-leased to bank with 7.8% Net ROI, ₹8.50 Cr").
 4. For Wellness / Products:
    - Highlight natural benefits and prices simply.
-5. Badges: 3 to 4 short, clean visual tags with emojis (e.g. ["🏢 ANV REEALTY", "📍 Pune", "💼 Office & Retail", "📈 7.8% ROI"]).
+5. Badges: 3 to 4 short, clean visual tags with emojis (e.g. ["✨ TrueDeal Verified", "🏢 Commercial Real Estate", "📍 Pune", "💼 Office & Retail"]).
 6. Follow-ups: 3 short, natural, clickable suggestions.
 
 Return ONLY a valid JSON object matching:
