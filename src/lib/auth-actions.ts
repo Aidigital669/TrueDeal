@@ -252,14 +252,20 @@ export async function loginUserAction(formData: {
   try {
     const inputId = formData.email.toLowerCase().trim();
     const isAdminId = inputId === "admin" || inputId === "superadmin" || inputId === "admin@truedeal.in";
-    const email = isAdminId ? "admin@truedeal.in" : inputId;
+    const isSaishId = inputId === "saishtechnofarms" || inputId === "ayurmor";
+    const email = isAdminId 
+      ? "admin@truedeal.in" 
+      : isSaishId 
+      ? "saishtechnofarms@gmail.com" 
+      : inputId;
 
     const db = await getDb();
 
-    // 1. Look up user by exact email or admin role
+    // 1. Look up user by exact email, alias, or admin role
     let user = await db.collection("users").findOne({
       $or: [
         { email },
+        { email: `${inputId}@gmail.com` },
         ...(isAdminId ? [{ role: "admin" }, { isAdmin: true }] : [])
       ]
     });

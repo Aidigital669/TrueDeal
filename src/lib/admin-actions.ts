@@ -10,6 +10,7 @@ import { ObjectId } from "mongodb";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserSession, UserSession } from "./auth-actions";
+import { getRealVisitorAnalytics } from "./telemetry";
 
 const SESSION_COOKIE_NAME = "truedeal_session";
 
@@ -1018,129 +1019,9 @@ export async function runAdminMaintenanceAction(actionType: "sync_sellers" | "cl
 }
 
 /**
- * 11. Visitor Analytics & Traffic Telemetry
+ * 11. Visitor Analytics & Traffic Telemetry (100% Real Database Queries)
  */
 export async function getAdminVisitorAnalyticsAction(timeRange: "today" | "7d" | "30d" | "90d" = "7d") {
-  try {
-    const db = await getDb();
-
-    // Fetch real totals from DB to scale analytics proportionally
-    const totalSellers = await db.collection("sellers").countDocuments();
-    const totalProducts = await db.collection("products").countDocuments();
-    const totalInquiries = await db.collection("inquiries").countDocuments();
-    const totalUsers = await db.collection("users").countDocuments();
-
-    // Multiplier based on timeframe
-    const multiplier = timeRange === "today" ? 1 : timeRange === "7d" ? 7 : timeRange === "30d" ? 28 : 84;
-
-    const baseVisitors = (120 + totalUsers * 8 + totalSellers * 25) * (multiplier / 4);
-    const totalVisitors = Math.round(baseVisitors);
-    const totalPageviews = Math.round(totalVisitors * 3.4);
-    const liveActiveNow = Math.floor(12 + (totalSellers * 2) + Math.random() * 8);
-
-    // Generate dynamic chart points
-    const chartPoints: Array<{ label: string; visitors: number; pageviews: number; inquiries: number }> = [];
-    if (timeRange === "today") {
-      const hours = ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"];
-      hours.forEach((h, i) => {
-        const v = Math.round(15 + Math.sin(i / 1.5) * 20 + Math.random() * 10);
-        chartPoints.push({
-          label: h,
-          visitors: Math.max(8, v),
-          pageviews: Math.max(25, v * 3),
-          inquiries: Math.max(0, Math.floor(v * 0.12))
-        });
-      });
-    } else {
-      const daysCount = timeRange === "7d" ? 7 : timeRange === "30d" ? 14 : 12;
-      for (let i = daysCount - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - (timeRange === "90d" ? i * 7 : i));
-        const label = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-        const v = Math.round((totalVisitors / daysCount) * (0.8 + Math.random() * 0.4));
-        chartPoints.push({
-          label,
-          visitors: v,
-          pageviews: Math.round(v * 3.2),
-          inquiries: Math.max(1, Math.round(v * 0.08))
-        });
-      }
-    }
-
-    // Top Storefronts from actual sellers in DB
-    const sellersInDb = await db.collection("sellers").find({}).limit(5).toArray();
-    const topStorefronts = sellersInDb.map((s, idx) => ({
-      name: s.storeName || "Seller Store",
-      slug: s.slug || "store",
-      url: `/p/${s.slug}`,
-      views: Math.round((totalPageviews * (0.35 - idx * 0.06))),
-      inquiries: Math.max(1, Math.round((totalInquiries || 5) * (0.4 - idx * 0.07)))
-    }));
-
-    // Fallback if few sellers in DB
-    if (topStorefronts.length === 0) {
-      topStorefronts.push(
-        { name: "ANV REEALTY", slug: "anvreeality", url: "/p/anvreeality", views: Math.round(totalPageviews * 0.4), inquiries: 18 },
-        { name: "Ayurmor Herbal", slug: "ayurmor-more", url: "/p/ayurmor-more", views: Math.round(totalPageviews * 0.25), inquiries: 11 }
-      );
-    }
-
-    return {
-      success: true,
-      timeRange,
-      kpis: {
-        totalVisitors,
-        totalPageviews,
-        liveActiveNow,
-        avgDuration: "4m 22s",
-        bounceRate: "26.8%",
-        inquiryConversionRate: `${((totalInquiries / Math.max(1, totalVisitors)) * 100).toFixed(1)}%`
-      },
-      chartPoints,
-      topStorefronts,
-      trafficChannels: [
-        { name: "Direct Marketplace", percentage: 42, color: "#6366f1" },
-        { name: "Gemini AI Search & Discovery", percentage: 28, color: "#a855f7" },
-        { name: "Google Organic Search", percentage: 16, color: "#3b82f6" },
-        { name: "WhatsApp & Seller Direct Link", percentage: 10, color: "#10b981" },
-        { name: "Social & Referrals", percentage: 4, color: "#f59e0b" }
-      ],
-      geoDistribution: [
-        { city: "Mumbai", state: "Maharashtra", share: "36%", count: Math.round(totalVisitors * 0.36) },
-        { city: "Pune", state: "Maharashtra", share: "24%", count: Math.round(totalVisitors * 0.24) },
-        { city: "Delhi NCR", state: "Delhi", share: "15%", count: Math.round(totalVisitors * 0.15) },
-        { city: "Bengaluru", state: "Karnataka", share: "12%", count: Math.round(totalVisitors * 0.12) },
-        { city: "Hyderabad", state: "Telangana", share: "8%", count: Math.round(totalVisitors * 0.08) },
-        { city: "Other Regions", state: "India", share: "5%", count: Math.round(totalVisitors * 0.05) }
-      ],
-      deviceBreakdown: {
-        mobile: 68,
-        desktop: 28,
-        tablet: 4
-      },
-      browserBreakdown: {
-        chrome: 72,
-        safari: 18,
-        edge: 7,
-        firefox: 3
-      },
-      topAiSearchQueries: [
-        { query: "luxury 3BHK flats in Pune under 2 Cr with swimming pool", searches: 142, conversion: "18.4%" },
-        { query: "ayurvedic certified pain relief herbal oil 100ml", searches: 118, conversion: "24.1%" },
-        { query: "commercial office space near BKC Mumbai verified", searches: 94, conversion: "15.9%" },
-        { query: "industrial 5HP submersible water pumps high pressure", searches: 86, conversion: "21.0%" },
-        { query: "organic wellness detox supplements with GST invoice", searches: 65, conversion: "19.2%" }
-      ],
-      conversionFunnel: [
-        { step: "1. Total Site Visitors", count: totalVisitors, dropoff: "0%" },
-        { step: "2. AI Catalog / Storefront Search", count: Math.round(totalVisitors * 0.68), dropoff: "32%" },
-        { step: "3. Listing & Price Inspection", count: Math.round(totalVisitors * 0.44), dropoff: "35%" },
-        { step: "4. Inquiry Submitted / RFQ Cart", count: Math.round(totalVisitors * 0.14), dropoff: "68%" }
-      ]
-    };
-  } catch (err: any) {
-    console.error("getAdminVisitorAnalyticsAction error:", err);
-    return { success: false, error: err.message };
-  }
+  return await getRealVisitorAnalytics(timeRange);
 }
 

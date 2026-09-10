@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise, { getDb, getAllSellerProductCollectionNames } from "@/lib/mongodb";
 import { parseSearchIntentWithGemini, generateGeminiSearchResponse } from "@/lib/gemini";
+import { recordSearchQuery } from "@/lib/telemetry";
 
 export interface SearchListingItem {
   id: string;
@@ -364,6 +365,13 @@ export async function POST(req: Request) {
         summaryText = `No listings found in the database matching "${query}".`;
       }
     }
+
+    // Record real search query into telemetry logs
+    recordSearchQuery({
+      query,
+      visitorId: body.visitorId || undefined,
+      resultsCount: rawListings.length
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

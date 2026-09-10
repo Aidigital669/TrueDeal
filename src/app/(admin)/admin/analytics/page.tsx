@@ -44,15 +44,30 @@ export default function AdminAnalyticsPage() {
   const kpis = data?.kpis || {
     totalVisitors: 0,
     totalPageviews: 0,
-    liveActiveNow: 16,
-    avgDuration: "4m 20s",
-    bounceRate: "26.8%",
-    inquiryConversionRate: "14.8%"
+    liveActiveNow: 0,
+    avgDuration: "0m 00s",
+    bounceRate: "0.0%",
+    inquiryConversionRate: "0.0%"
   };
+
+  const pagesPerSession = kpis.totalVisitors > 0 
+    ? (kpis.totalPageviews / kpis.totalVisitors).toFixed(1)
+    : "0.0";
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto font-sans pb-12">
       
+      {/* Real Telemetry Status Pill */}
+      <div className="flex items-center justify-between px-4 py-2 bg-emerald-950/40 border border-emerald-800/50 rounded-2xl text-xs">
+        <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>100% Real Live Database Data — Connected to MongoDB Atlas (<code className="text-emerald-200">visitor_events</code> &amp; <code className="text-emerald-200">search_logs</code>)</span>
+        </div>
+        <span className="text-[11px] text-emerald-400 font-mono hidden sm:inline">
+          Last Sync: {data?.lastTelemetrySync ? new Date(data.lastTelemetrySync).toLocaleTimeString("en-IN") : "Just now"}
+        </span>
+      </div>
+
       {/* Header & Timeframe Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-gray-900 via-[#131722] to-gray-900 p-6 rounded-3xl border border-gray-800 shadow-xl relative overflow-hidden">
         <div className="space-y-1 relative z-10">
@@ -62,7 +77,7 @@ export default function AdminAnalyticsPage() {
               Live Telemetry
             </span>
             <span className="text-xs text-gray-300 font-bold">
-              {kpis.liveActiveNow} Active Visitors on TrueDeal Now
+              {kpis.liveActiveNow} Active Visitor{kpis.liveActiveNow === 1 ? "" : "s"} on TrueDeal Right Now
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
@@ -108,7 +123,7 @@ export default function AdminAnalyticsPage() {
       {loading ? (
         <div className="py-24 flex flex-col items-center justify-center gap-2 text-gray-400">
           <Loader2 className="w-7 h-7 animate-spin text-indigo-500" />
-          <span className="text-xs font-bold">Aggregating Traffic Telemetry...</span>
+          <span className="text-xs font-bold">Querying Real Telemetry from MongoDB Atlas...</span>
         </div>
       ) : (
         <>
@@ -128,7 +143,7 @@ export default function AdminAnalyticsPage() {
                   {kpis.totalVisitors.toLocaleString("en-IN")}
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-xs font-bold text-emerald-400">
-                  <TrendingUp className="w-3.5 h-3.5" /> +18.4% vs last period
+                  <TrendingUp className="w-3.5 h-3.5" /> Real Distinct Visitors
                 </div>
               </div>
             </div>
@@ -146,7 +161,7 @@ export default function AdminAnalyticsPage() {
                   {kpis.totalPageviews.toLocaleString("en-IN")}
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-xs font-bold text-purple-400">
-                  ~3.4 pages per session
+                  ~{pagesPerSession} pages per visitor
                 </div>
               </div>
             </div>
@@ -182,7 +197,7 @@ export default function AdminAnalyticsPage() {
                   {kpis.inquiryConversionRate}
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-xs font-bold text-gray-400">
-                  Visitor to buyer RFQ rate
+                  Actual RFQ inquiries / visitors
                 </div>
               </div>
             </div>
@@ -210,39 +225,44 @@ export default function AdminAnalyticsPage() {
             </div>
 
             {/* Bar Visualizer */}
-            <div className="grid grid-cols-7 sm:grid-cols-12 md:grid-cols-14 gap-2 pt-4 items-end h-48 border-b border-gray-800 pb-2">
-              {(data?.chartPoints || []).map((pt: any, i: number) => {
-                const maxVal = Math.max(...(data?.chartPoints || []).map((p: any) => p.pageviews || 100));
-                const heightPercent = Math.max(15, Math.round((pt.pageviews / maxVal) * 100));
-                const visitorPercent = Math.max(10, Math.round((pt.visitors / maxVal) * 100));
+            <div className="grid grid-cols-8 sm:grid-cols-12 md:grid-cols-14 gap-2 pt-4 items-end h-48 border-b border-gray-800 pb-2">
+              {(() => {
+                const points = data?.chartPoints || [];
+                const maxVal = Math.max(1, ...points.map((p: any) => Math.max(p.pageviews || 0, p.visitors || 0)));
 
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1 h-full justify-end group relative">
-                    {/* Tooltip on hover */}
-                    <div className="absolute -top-14 hidden group-hover:flex flex-col items-center p-1.5 bg-gray-950 border border-gray-700 rounded-lg shadow-xl text-[10px] font-mono z-30 whitespace-nowrap">
-                      <span className="font-bold text-white">{pt.label}</span>
-                      <span className="text-indigo-400">{pt.visitors} visitors</span>
-                      <span className="text-amber-400">{pt.inquiries} leads</span>
-                    </div>
+                return points.map((pt: any, i: number) => {
+                  const heightPercent = pt.pageviews > 0 ? Math.max(6, Math.round((pt.pageviews / maxVal) * 100)) : 0;
+                  const visitorPercent = pt.visitors > 0 ? Math.max(6, Math.round((pt.visitors / maxVal) * 100)) : 0;
 
-                    <div className="w-full flex items-end justify-center gap-0.5 h-full">
-                      {/* Visitors bar */}
-                      <div
-                        className="w-1/2 bg-indigo-600/80 rounded-t group-hover:bg-indigo-500 transition-all"
-                        style={{ height: `${visitorPercent}%` }}
-                      />
-                      {/* Pageviews bar */}
-                      <div
-                        className="w-1/2 bg-purple-600/80 rounded-t group-hover:bg-purple-500 transition-all"
-                        style={{ height: `${heightPercent}%` }}
-                      />
+                  return (
+                    <div key={i} className="flex flex-col items-center gap-1 h-full justify-end group relative">
+                      {/* Tooltip on hover */}
+                      <div className="absolute -top-14 hidden group-hover:flex flex-col items-center p-1.5 bg-gray-950 border border-gray-700 rounded-lg shadow-xl text-[10px] font-mono z-30 whitespace-nowrap">
+                        <span className="font-bold text-white">{pt.label}</span>
+                        <span className="text-indigo-400">{pt.visitors} visitor{pt.visitors === 1 ? "" : "s"}</span>
+                        <span className="text-purple-400">{pt.pageviews} view{pt.pageviews === 1 ? "" : "s"}</span>
+                        <span className="text-amber-400">{pt.inquiries} lead{pt.inquiries === 1 ? "" : "s"}</span>
+                      </div>
+
+                      <div className="w-full flex items-end justify-center gap-0.5 h-full">
+                        {/* Visitors bar */}
+                        <div
+                          className={`w-1/2 rounded-t transition-all ${pt.visitors > 0 ? "bg-indigo-600/80 group-hover:bg-indigo-500" : "bg-gray-800/30"}`}
+                          style={{ height: `${visitorPercent || 2}%` }}
+                        />
+                        {/* Pageviews bar */}
+                        <div
+                          className={`w-1/2 rounded-t transition-all ${pt.pageviews > 0 ? "bg-purple-600/80 group-hover:bg-purple-500" : "bg-gray-800/30"}`}
+                          style={{ height: `${heightPercent || 2}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] font-mono text-gray-400 truncate w-full text-center">
+                        {pt.label}
+                      </span>
                     </div>
-                    <span className="text-[9px] font-mono text-gray-400 truncate w-full text-center">
-                      {pt.label}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
 
