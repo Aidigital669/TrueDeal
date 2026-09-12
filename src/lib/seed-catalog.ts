@@ -571,6 +571,13 @@ export async function ensureSeedProductsInDatabase() {
         { $set: { ...port, updatedAt: new Date() } },
         { upsert: true }
       );
+      if (port.slug === "ayurmor") {
+        await db.collection("portfolios").updateOne(
+          { slug: "ayurmor-more" },
+          { $set: { ...port, slug: "ayurmor-more", updatedAt: new Date() } },
+          { upsert: true }
+        );
+      }
     }
 
     // Seed products into their dedicated seller collections
@@ -581,6 +588,13 @@ export async function ensureSeedProductsInDatabase() {
         { $set: { ...prod, updatedAt: new Date() } },
         { upsert: true }
       );
+      if (prod.sellerSlug === "ayurmor") {
+        await db.collection("products_ayurmor_more").updateOne(
+          { title: prod.title },
+          { $set: { ...prod, portfolioSlug: "ayurmor-more", sellerSlug: "ayurmor-more", updatedAt: new Date() } },
+          { upsert: true }
+        );
+      }
     }
   } catch (err: any) {
     console.warn("Notice checking/seeding marketplace catalog:", err.message);

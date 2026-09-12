@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-  Heart, User, Menu, X, Plus, LogOut, ChevronDown, ShieldCheck
+  Heart, User, Menu, X, Plus, LogOut, ChevronDown, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getCurrentUserAction, logoutUserAction, UserSession } from '@/lib/auth-actions';
@@ -102,6 +102,19 @@ export function Header({
 
         {/* Right Section: Customer Actions & Profile */}
         <div className="flex items-center gap-2 md:gap-2.5">
+          {/* TrueDeal AI Chat Link */}
+          <Link
+            href="/chat"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-700 font-bold text-xs border border-indigo-100/80 transition-all shadow-xs"
+            title="Open TrueDeal AI Assistant"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+            <span>AI Chat</span>
+            <span className="hidden sm:inline-block text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-600 text-white font-black">
+              AI
+            </span>
+          </Link>
+
           {/* Wishlist Icon with count badge */}
           <Button 
             variant="ghost" 

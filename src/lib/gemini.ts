@@ -173,20 +173,27 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string 
 }
 
 /**
- * 1. Parse natural language search queries using AI
+ * 1. Parse natural language search queries using AI with conversational context
  */
-export async function parseSearchIntentWithGemini(userQuery: string): Promise<ParsedSearchIntent> {
+export async function parseSearchIntentWithGemini(
+  userQuery: string,
+  conversationHistory?: { role: string; content: string }[]
+): Promise<ParsedSearchIntent> {
   const fallbackResult: ParsedSearchIntent = {
     intent: "search_products",
     keywords: userQuery.toLowerCase().split(/\s+/).filter(w => w.length > 2),
   };
+
+  const historyContext = conversationHistory && conversationHistory.length > 0
+    ? `Recent Conversation Context:\n${conversationHistory.slice(-4).map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content.slice(0, 150)}`).join("\n")}\n\n`
+    : "";
 
   const systemPrompt = `You are the TrueDeal AI Search Parser for a comprehensive marketplace featuring:
 - Products (Electronics, Laptops, Hardware, Ayurvedic Health & Wellness, Apparel, etc.)
 - Services (IT Consulting, Software, Legal, Digital Marketing, Corporate Services)
 - Real Estate & Properties (Commercial Offices, 2BHK/3BHK Apartments, Sea-view homes, IT Parks in Pune, Mumbai, Delhi NCR, Bangalore, etc.)
 
-Analyze the user's natural language query and return ONLY a valid JSON object with:
+Analyze the user's query and return ONLY a valid JSON object with:
 {
   "intent": "search_products" | "search_services" | "search_properties" | "general_qa" | "recommendation",
   "category": "string (e.g. Electronics, Real Estate, Commercial Properties, Ayurvedic Care, Software Services)",
@@ -195,10 +202,14 @@ Analyze the user's natural language query and return ONLY a valid JSON object wi
   "priceRange": { "min": optional number, "max": optional number },
   "specs": { "key": "value" },
   "userSummary": "brief phrase summarizing what user wants"
-}`;
+}
+
+CRITICAL RULES:
+- If the current query asks for a different category (e.g. food/wellness like "Moringa", "soup" while previous context was real estate), DO NOT carry over the previous category, seller, or location. The Current User Query ALWAYS dictates the intent.
+- Do not assume a location (e.g. Pune) unless the user's current query or active query specifically mentions it.`;
 
   try {
-    const rawText = await callAI(systemPrompt, `User Query: "${userQuery}"`);
+    const rawText = await callAI(systemPrompt, `${historyContext}Current User Query: "${userQuery}"`);
     if (!rawText) return fallbackResult;
 
     const parsed = JSON.parse(rawText.trim().replace(/^```json\s*|```$/g, ""));
@@ -218,56 +229,81 @@ Analyze the user's natural language query and return ONLY a valid JSON object wi
 }
 
 /**
- * 2. Generate Intelligent Conversational Response and Smart Filters with AI
+ * 2. Generate Intelligent, Deeply Interactive & Consultative Marketplace Response with AI
  */
 export async function generateGeminiSearchResponse(
   userQuery: string,
   candidateListings: any[],
   parsedIntent?: ParsedSearchIntent,
-  companyProfile?: CompanyProfileOutput
+  companyProfile?: CompanyProfileOutput,
+  conversationHistory?: { role: string; content: string }[]
 ): Promise<GeminiSearchOutput> {
+  if (candidateListings.length === 0 && !companyProfile) {
+    return {
+      summaryText: "No result found",
+      appliedFilters: [],
+      suggestedFollowUps: [],
+      rankedListingIds: []
+    };
+  }
+
   const isRealEstate = candidateListings.some(l => 
     l.category?.toLowerCase().includes("commercial") || 
     l.category?.toLowerCase().includes("real estate") || 
     l.title?.toLowerCase().includes("office") ||
     l.title?.toLowerCase().includes("commercial")
-  ) || parsedIntent?.category?.toLowerCase().includes("real estate") || parsedIntent?.category?.toLowerCase().includes("commercial");
+  ) || (/(?:commercial|office|shop|showroom|warehouse|real estate|rera|pre-leased|baner|viman nagar|hinjewadi|kharadi|balewadi)/i.test(userQuery));
+
+  const isTech = candidateListings.some(l =>
+    l.category?.toLowerCase().includes("electronic") ||
+    l.category?.toLowerCase().includes("hardware") ||
+    l.title?.toLowerCase().includes("laptop") ||
+    l.title?.toLowerCase().includes("pc")
+  ) || (/(?:laptop|notebook|thinkpad|macbook|gpu|cpu|ram|computer|pc|tech)/i.test(userQuery));
 
   let defaultSummary = "";
   if (companyProfile && isRealEstate) {
-    defaultSummary = `Here are the verified commercial properties available from **${companyProfile.name}**${companyProfile.city ? ` in ${companyProfile.city}` : ""}:`;
+    defaultSummary = `Showing verified commercial properties from **${companyProfile.name}**${companyProfile.city ? ` in ${companyProfile.city}` : ""}.`;
   } else if (companyProfile) {
-    defaultSummary = `Here are the verified offerings from **${companyProfile.name}**:`;
+    defaultSummary = `Showing verified offerings from **${companyProfile.name}**.`;
   } else if (candidateListings.length > 0 && isRealEstate) {
-    defaultSummary = `Here are verified commercial properties on TrueDeal matching **"${userQuery}"**:`;
+    defaultSummary = `Found **${candidateListings.length} verified commercial propert${candidateListings.length === 1 ? "y" : "ies"}** matching your search.`;
+  } else if (candidateListings.length > 0 && isTech) {
+    defaultSummary = `Found **${candidateListings.length} verified tech listing${candidateListings.length === 1 ? "" : "s"}** matching your search.`;
   } else if (candidateListings.length > 0) {
-    defaultSummary = `Here are the verified listings on TrueDeal matching **"${userQuery}"**:`;
+    defaultSummary = `Found **${candidateListings.length} verified listing${candidateListings.length === 1 ? "" : "s"}** matching **"${userQuery}"**.`;
   } else {
-    defaultSummary = `I couldn't find any listings matching "${userQuery}". You can try searching for *"commercial office in Pune"* or *"Ayurmor soup"*.`;
+    defaultSummary = "No result found";
   }
 
   const fallbackOutput: GeminiSearchOutput = {
     summaryText: defaultSummary,
     appliedFilters: companyProfile
       ? [`🏢 ${companyProfile.name}`, ...(companyProfile.city ? [`📍 ${companyProfile.city}`] : []), "✨ Verified"]
-      : (isRealEstate ? ["🏢 Commercial Real Estate", "📍 Pune", "✨ TrueDeal Verified"] : ["✨ TrueDeal Verified Catalog"]),
+      : (isRealEstate 
+          ? ["🏢 Commercial Real Estate", "📍 Pune", "✨ TrueDeal Verified"] 
+          : isTech 
+          ? ["💻 High Performance Tech", "⚡ Verified Hardware", "✨ TrueDeal Verified"]
+          : ["✨ TrueDeal Verified Catalog"]),
     suggestedFollowUps: isRealEstate
       ? [
-          "🏢 EON IT Park 140 Desks Office",
-          "📈 Baner Pre-Leased 7.8% ROI Showroom",
-          "💼 WTC Kharadi Executive Suite"
+          "Furnished office suites",
+          "Bare-shell office floorplates",
+          "Connect on WhatsApp with seller"
+        ]
+      : isTech
+      ? [
+          "Laptops under ₹60,000",
+          "High Performance Workstations",
+          "Ask seller about warranty"
         ]
       : (companyProfile
-          ? [`Message ${companyProfile.name} on WhatsApp`, `View ${companyProfile.name} Storefront`]
-          : ["🍲 Ayurmor Moringa Soup", "🥤 Sprouted Chocolate Malt", "🏢 Commercial Offices Pune"]
+          ? [`Message ${companyProfile.name} on WhatsApp`, `View ${companyProfile.name} Catalog`]
+          : ["Filter by price", "Connect with verified seller"]
         ),
     rankedListingIds: candidateListings.map(l => l.id),
     companyProfile
   };
-
-  if (candidateListings.length === 0 && !companyProfile) {
-    return fallbackOutput;
-  }
 
   const simplifiedListings = candidateListings.slice(0, 8).map(l => ({
     id: l.id,
@@ -285,37 +321,44 @@ export async function generateGeminiSearchResponse(
     websiteUrl: l.websiteUrl || l.productUrl || ""
   }));
 
-  const systemPrompt = `You are TrueDeal AI Assistant — a friendly, helpful, and concise shopping & business advisor on the TrueDeal Direct Marketplace (truedeal.in).
-Your identity is ALWAYS TrueDeal AI. You represent the entire TrueDeal multi-seller marketplace platform in India.
+  const historyPromptSnippet = conversationHistory && conversationHistory.length > 0
+    ? `Recent Conversation Context:\n${conversationHistory.slice(-5).map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content.slice(0, 200)}`).join("\n")}\n\n`
+    : "";
 
-CRITICAL IDENTITY RULES:
-- NEVER claim to be ANV Realty, Ayurmor, PurePlush, or any single merchant.
-- NEVER say "Welcome to ANV Realty" or "I am your property advisor at ANV".
-- If listings are presented, introduce them as: "Here are verified listings on TrueDeal matching your search...".
+  const systemPrompt = `You are TrueDeal AI — a direct, precise, and professional search assistant for the TrueDeal Marketplace (truedeal.in).
+Your identity is ALWAYS TrueDeal AI representing India's direct marketplace platform.
 
-Guidelines:
-1. Tone: Natural, friendly, human, clear, and direct. Avoid stiff corporate jargon, robotic announcements, or long walls of text.
-2. Structure (Keep it small & scannable):
-   - 1 short, friendly intro sentence acknowledging their search on TrueDeal.
-   - 2 to 4 crisp bullet points highlighting the top options found (mention Name, Key Spec e.g. desks/sq.ft/ingredients, Price in ₹ Cr/Lakh/₹, and Location/Seller).
-   - 1 quick closing sentence inviting them to check the product cards below or connect with sellers directly.
-3. For Commercial Real Estate:
-   - Keep details clear and brief (e.g. "• **EON IT Park, Kharadi**: 9,800 sq.ft furnished office with 140 workstations, ₹11.50 Cr").
-   - Mention key metrics like ROI (e.g. "• **Baner Showroom**: Pre-leased to bank with 7.8% Net ROI, ₹8.50 Cr").
-4. For Wellness / Products:
-   - Highlight natural benefits and prices simply.
-5. Badges: 3 to 4 short, clean visual tags with emojis (e.g. ["✨ TrueDeal Verified", "🏢 Commercial Real Estate", "📍 Pune", "💼 Office & Retail"]).
-6. Follow-ups: 3 short, natural, clickable suggestions.
+CRITICAL RULES (MANDATORY — STRICTLY ENFORCE):
+1. ZERO FLUFF & ZERO BOILERPLATE:
+   - DO NOT include greeting preambles like "Hello!", "As TrueDeal AI...", "Welcome to TrueDeal...", or "I found some verified listings...".
+   - DO NOT include marketing sign-offs like "Check out the product details below...", "Reach out to sellers directly...", or "Feel free to ask...".
+   - Be completely direct, concise, and to the point.
+
+2. DO NOT DUPLICATE PRODUCT LISTINGS AS BULLET POINTS:
+   - The user interface already renders rich visual cards with photos, prices, specs, locations, and direct WhatsApp buttons directly beneath your message.
+   - DO NOT write out bullet points listing the individual product names, specs, and prices. That creates redundant clutter.
+
+3. STRICT ADHERENCE TO USER FILTERS & SEARCH PARAMETERS:
+   - Only address listings that strictly match what the user searched for.
+   - If the user specified a budget (e.g. "under ₹8 Cr"), NEVER mention or recommend listings above that budget.
+   - If the user specified a city (e.g. "Pune"), focus strictly on that city.
+
+4. RESPONSE STRUCTURE (Keep it concise, exactly 1-2 sentences):
+   - Factual 1-sentence confirmation of what was found (e.g. "Found **2 verified commercial properties** in Pune under **₹8 Cr**.").
+   - DO NOT append unsolicited questions like "Would you like to...", "Would you prefer...", or conversational queries. Keep it factual and concise.
+
+5. Contextual Follow-Up Suggestions ("suggestedFollowUps"):
+   - Return 2-3 short, actionable refinement chips (e.g. ["Under ₹10 Lakh", "Connect on WhatsApp"]).
 
 Return ONLY a valid JSON object matching:
 {
-  "summaryText": "Concise, friendly, humanized markdown text.",
-  "appliedFilters": ["3-4 short badge tags with emojis"],
-  "suggestedFollowUps": ["3 short follow-up prompts"],
+  "summaryText": "Direct, concise markdown response following the rules above.",
+  "appliedFilters": ["2-4 short filter badge strings with emojis matching the search parameters"],
+  "suggestedFollowUps": ["2-3 relevant quick action / question chips"],
   "rankedListingIds": ["ordered list of listing ids from highest relevance to lowest"]
 }`;
 
-  const userPrompt = `User Query: "${userQuery}"
+  const userPrompt = `${historyPromptSnippet}Current User Query: "${userQuery}"
 ${companyProfile ? `Matched Company Profile: ${JSON.stringify(companyProfile)}` : "No specific single company profile matched."}
 Matched Database Listings: ${JSON.stringify(simplifiedListings)}
 Extracted Intent: ${JSON.stringify(parsedIntent || {})}`;
@@ -483,3 +526,67 @@ ${params.pageSnippet.slice(0, 3500)}
     return null;
   }
 }
+
+/**
+ * Universal Conversational Answer Generator for Chit-Chat, Meta & General Queries
+ * When user is not searching for specific products, returns a clean, direct answer with ZERO listings.
+ */
+export async function generateGeminiConversationalAnswer(
+  userQuery: string,
+  conversationHistory?: { role: string; content: string }[]
+): Promise<string> {
+  const historyPromptSnippet = conversationHistory && conversationHistory.length > 0
+    ? `Recent Conversation Context:\n${conversationHistory.slice(-4).map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content.slice(0, 150)}`).join("\n")}\n\n`
+    : "";
+
+  const systemPrompt = `You are TrueDeal AI — the intelligent, friendly, and helpful assistant for the TrueDeal marketplace (truedeal.in).
+The user asked a conversational or general question (not a specific product search).
+
+CRITICAL INSTRUCTIONS:
+- Give a simple, natural, friendly, and direct answer to the user.
+- Keep your answer short (1-2 sentences).
+- DO NOT invent, push, or mention specific product listings, prices, or catalogs.
+- DO NOT ask unsolicited clarifying questions.
+- Be polite and helpful.
+
+Return ONLY a valid JSON object matching:
+{
+  "reply": "Your concise 1-2 sentence response."
+}`;
+
+  try {
+    const rawText = await callAI(systemPrompt, `${historyPromptSnippet}User Query: "${userQuery}"`);
+    if (rawText) {
+      let cleaned = rawText.trim();
+      try {
+        const parsed = JSON.parse(cleaned);
+        if (parsed.reply || parsed.answer || parsed.text || parsed.message) {
+          cleaned = parsed.reply || parsed.answer || parsed.text || parsed.message;
+        }
+      } catch {}
+      return cleaned.replace(/^["']|["']$/g, "").trim();
+    }
+  } catch (err: any) {
+    console.warn("Conversational AI notice:", err.message);
+  }
+
+  // High quality deterministic fallbacks for common queries
+  const lower = userQuery.toLowerCase().trim();
+  if (/how\s+are\s+you/i.test(lower)) {
+    return "I'm doing well, thank you! How can I help you today?";
+  }
+  if (/^(hi|hello|hey|greetings|namaste|good\s+(morning|afternoon|evening))/i.test(lower)) {
+    return "Hello! Welcome to TrueDeal. How can I assist you today?";
+  }
+  if (/who\s+are\s+you|what\s+is\s+your\s+name/i.test(lower)) {
+    return "I am TrueDeal AI, your virtual assistant for finding verified products, commercial real estate, and direct sellers across India.";
+  }
+  if (/what\s+is\s+truedeal|how\s+does\s+truedeal\s+work/i.test(lower)) {
+    return "TrueDeal is India's direct marketplace platform connecting buyers directly with verified sellers, manufacturers, and commercial properties without middlemen.";
+  }
+  if (/thank/i.test(lower)) {
+    return "You're very welcome! Let me know if you need any assistance.";
+  }
+  return "I'm here to help you! Feel free to search for verified products, commercial properties, and direct sellers on TrueDeal.";
+}
+

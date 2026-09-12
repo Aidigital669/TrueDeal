@@ -4,21 +4,21 @@ import { getCurrentUserSession } from "@/lib/auth-actions";
 
 export const metadata: Metadata = {
   title: "TrueDeal AI - Marketplace Assistant",
-  description: "Chat with TrueDeal AI to discover products, services, properties, and direct verified sellers.",
+  description: "Chat with TrueDeal AI to discover products, services, properties, and direct verified sellers."
 };
 
-export default async function HomePage() {
+export default async function ChatPage() {
   const user = await getCurrentUserSession();
 
   return (
-    <div className="w-full h-full overflow-hidden bg-[#212121]">
+    <div className="w-full h-[100dvh] overflow-hidden bg-[#212121]">
       <ChatGPTInterface
         currentUser={
           user
             ? {
                 name: user.name,
                 email: user.email,
-                role: user.role,
+                role: user.role
               }
             : null
         }
