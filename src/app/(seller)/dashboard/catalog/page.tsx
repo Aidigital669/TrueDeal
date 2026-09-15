@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Sparkles, Globe, Store, Pencil, Trash2, Plus, ArrowDownToLine, Loader2, Inbox, Package } from "lucide-react";
+import { Search, Sparkles, Globe, Store, Pencil, Trash2, Plus, ArrowDownToLine, Loader2, Inbox, Package, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getProducts, deleteProduct, clearAllProductsAction } from "./actions";
@@ -122,6 +122,12 @@ export default function CatalogPage() {
               <span>Clear All</span>
             </button>
           )}
+          <Link href="/connect?tab=pdf">
+            <button className="bg-white hover:bg-purple-50 text-purple-700 hover:text-purple-800 font-bold border border-purple-200 hover:border-purple-300 rounded-xl px-3.5 h-10 text-xs shadow-xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer">
+              <FileUp className="w-3.5 h-3.5 text-purple-600" />
+              <span>Upload PDF Catalog</span>
+            </button>
+          </Link>
           <Link href="/connect">
             <button className="bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 font-bold border border-gray-200 hover:border-gray-300 rounded-xl px-4 h-10 text-xs shadow-xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer">
               <ArrowDownToLine className="w-3.5 h-3.5 text-indigo-600" />

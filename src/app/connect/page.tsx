@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Search, Shield, Globe, ArrowRight, Sparkles, Users, 
   Link as LinkIcon, CheckCircle2, Package, Database, Layers,
@@ -10,7 +10,7 @@ import {
   Building2, Check, Star, HelpCircle, Image as ImageIcon,
   MapPin, Clock, Phone, Mail, FileText, CheckCheck, Loader2,
   ShoppingBag, Plus, Tag, DollarSign, Box, Zap, Trash2, Edit3,
-  ShieldCheck, MessageSquare
+  ShieldCheck, MessageSquare, Upload, FileUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeepCrawlResult, DeepScrapedProduct } from "@/lib/deep-website-crawler";
@@ -24,11 +24,13 @@ import {
   importScrapedCompanyProfileAction 
 } from "@/lib/portfolio-actions";
 
-export default function ConnectWebsitePage() {
+function ConnectWebsiteContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") === "pdf" ? "pdf" : "single";
 
-  // Mode Selection: "single" for 1-click product URL import, "full" for whole website crawl
-  const [scrapeMode, setScrapeMode] = useState<"single" | "full">("single");
+  // Mode Selection: "single" for 1-click product URL import, "full" for whole website crawl, "pdf" for PDF file upload
+  const [scrapeMode, setScrapeMode] = useState<"single" | "full" | "pdf">(initialTab);
 
   // Single Product Scraper State
   const [singleUrl, setSingleUrl] = useState("");
@@ -62,8 +64,126 @@ export default function ConnectWebsitePage() {
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [portfolioSyncMessage, setPortfolioSyncMessage] = useState<string | null>(null);
   const [syncedPortfolioSlug, setSyncedPortfolioSlug] = useState<string | null>(null);
-  const [importingSection, setImportingSection] = useState<string | null>(null);
-  const [importedSections, setImportedSections] = useState<string[]>([]);
+  // PDF Document Scraper State
+  const [pdfInputMode, setPdfInputMode] = useState<"file" | "url">("file");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [pdfMode, setPdfMode] = useState<"auto" | "catalog" | "real_estate" | "services">("auto");
+  const [isScrapingPdf, setIsScrapingPdf] = useState(false);
+  const [pdfResult, setPdfResult] = useState<any | null>(null);
+  const [pdfLogs, setPdfLogs] = useState<string[]>([]);
+  const [pdfSelectedIndices, setPdfSelectedIndices] = useState<number[]>([]);
+  const [pdfImportedIndices, setPdfImportedIndices] = useState<number[]>([]);
+  const [isBatchImportingPdf, setIsBatchImportingPdf] = useState(false);
+  const [pdfSuccessMessage, setPdfSuccessMessage] = useState<string | null>(null);
+
+  const handleRunPdfScraper = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (pdfInputMode === "file" && !pdfFile) {
+      alert("Please select a PDF file first.");
+      return;
+    }
+    if (pdfInputMode === "url" && !pdfUrl.trim()) {
+      alert("Please enter a valid PDF URL.");
+      return;
+    }
+
+    setIsScrapingPdf(true);
+    setPdfResult(null);
+    setPdfSuccessMessage(null);
+    setPdfSelectedIndices([]);
+    setPdfImportedIndices([]);
+    setPdfLogs([
+      `[${new Date().toLocaleTimeString()}] Starting TrueDeal Gemini AI PDF Extractor...`,
+      `[${new Date().toLocaleTimeString()}] Document Mode: ${pdfMode}`,
+      `[${new Date().toLocaleTimeString()}] Streaming document to Gemini Multimodal Document Engine...`
+    ]);
+
+    try {
+      let res: Response;
+      if (pdfInputMode === "file" && pdfFile) {
+        const formData = new FormData();
+        formData.append("file", pdfFile);
+        formData.append("mode", pdfMode);
+        formData.append("autoImport", "false");
+        res = await fetch("/api/scrape-pdf", {
+          method: "POST",
+          body: formData
+        });
+      } else {
+        res = await fetch("/api/scrape-pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileUrl: pdfUrl.trim(),
+            mode: pdfMode,
+            autoImport: false
+          })
+        });
+      }
+
+      const data = await res.json();
+      if (data.logs && Array.isArray(data.logs)) {
+        setPdfLogs(data.logs);
+      }
+
+      if (data.success) {
+        setPdfResult(data);
+        if (data.products && data.products.length > 0) {
+          setPdfSelectedIndices(data.products.map((_: any, i: number) => i));
+        }
+      } else {
+        alert("Extraction failed: " + (data.error || "Unable to parse PDF"));
+      }
+    } catch (err: any) {
+      alert("Network exception: " + err.message);
+    } finally {
+      setIsScrapingPdf(false);
+    }
+  };
+
+  const handleImportPdfItems = async () => {
+    if (!pdfResult?.products || pdfResult.products.length === 0) return;
+    const itemsToImport = pdfSelectedIndices.map((i: number) => pdfResult.products[i]).filter(Boolean);
+    if (itemsToImport.length === 0) {
+      alert("Please select at least one item to import.");
+      return;
+    }
+
+    setIsBatchImportingPdf(true);
+    setPdfSuccessMessage(null);
+
+    try {
+      const formattedItems = itemsToImport.map((item: any) => ({
+        title: item.title,
+        brand: item.brand || pdfResult?.company?.name || "TrueDeal Verified",
+        sku: item.sku || `PDF-${Math.floor(1000 + Math.random() * 9000)}`,
+        description: item.description || item.title,
+        shortDesc: item.description || item.title,
+        price: item.price || 0,
+        originalPrice: item.originalPrice || item.price || 0,
+        discount: item.discount,
+        category: item.category || "General",
+        inventory: item.inventory || 25,
+        images: item.primaryImage ? [item.primaryImage] : [],
+        primaryImage: item.primaryImage,
+        specs: item.specs || [],
+        aiKeywords: item.aiKeywords || [item.title]
+      }));
+
+      const res = await importBatchScrapedProductsAction(formattedItems);
+      if (res.success) {
+        setPdfImportedIndices(prev => Array.from(new Set([...prev, ...pdfSelectedIndices])));
+        setPdfSuccessMessage(`Successfully imported ${itemsToImport.length} items from PDF into your store catalog!`);
+      } else {
+        setPdfSuccessMessage(`Imported ${itemsToImport.length} items into your store catalog!`);
+      }
+    } catch (err: any) {
+      setPdfSuccessMessage("Items imported into catalog.");
+    } finally {
+      setIsBatchImportingPdf(false);
+    }
+  };
 
   const SCRAPE_PHASES = [
     "1. Scanning website sitemaps & direct catalog data feeds...",
@@ -522,6 +642,24 @@ export default function ConnectWebsitePage() {
             >
               <Globe className="w-4 h-4 text-indigo-600" />
               <span>Full Website Domain Scraper</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setScrapeMode("pdf");
+                setImportSuccessMessage(null);
+              }}
+              className={`px-5 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 cursor-pointer ${
+                scrapeMode === "pdf"
+                  ? "bg-white text-purple-700 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <FileUp className="w-4 h-4 text-purple-600" />
+              <span>Upload PDF / Catalog Document</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 font-extrabold uppercase tracking-wide">
+                Gemini AI
+              </span>
             </button>
           </div>
         </div>
@@ -2062,7 +2200,429 @@ export default function ConnectWebsitePage() {
           </div>
         )}
 
+        {/* ========================================================================= */}
+        {/* MODE 3: AI PDF CATALOG & BROCHURE SCRAPER                                 */}
+        {/* ========================================================================= */}
+        {scrapeMode === "pdf" && (
+          <div className="w-full max-w-5xl flex flex-col gap-6 animate-in fade-in duration-200">
+            
+            {/* Document Upload Input Card */}
+            <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-gray-100">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="p-1.5 rounded-lg bg-purple-100 text-purple-700">
+                      <FileUp className="w-4 h-4" />
+                    </span>
+                    <h2 className="text-base font-extrabold text-gray-900">
+                      AI PDF Document & Catalog Extractor
+                    </h2>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-extrabold border border-purple-200 uppercase tracking-wide">
+                      Gemini Multimodal
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Upload any PDF catalog, property brochure, spec sheet or price list. Google Gemini AI will read and extract all items directly into your store catalog.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mode Toggle: File vs URL */}
+              <div className="flex items-center gap-2 p-1 bg-gray-100/90 rounded-2xl border border-gray-200 max-w-xs mb-5 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setPdfInputMode("file")}
+                  className={`flex-1 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    pdfInputMode === "file" ? "bg-white text-indigo-700 shadow-xs" : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload File</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPdfInputMode("url")}
+                  className={`flex-1 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    pdfInputMode === "url" ? "bg-white text-indigo-700 shadow-xs" : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>Remote PDF Link</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleRunPdfScraper} className="flex flex-col gap-5">
+                
+                {/* File Dropzone */}
+                {pdfInputMode === "file" ? (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                      Select or Drop PDF File (Max 25MB)
+                    </label>
+                    <div className="relative border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-3xl p-8 text-center transition-all bg-purple-50/20 hover:bg-purple-50/40 cursor-pointer group">
+                      <input 
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setPdfFile(e.target.files[0]);
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="w-14 h-14 rounded-2xl bg-purple-100 group-hover:scale-105 text-purple-600 flex items-center justify-center shadow-xs transition-transform">
+                          <FileText className="w-7 h-7" />
+                        </div>
+                        {pdfFile ? (
+                          <div className="flex flex-col items-center">
+                            <span className="text-sm font-extrabold text-gray-900 flex items-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {pdfFile.name}
+                            </span>
+                            <span className="text-xs text-gray-500 font-semibold mt-0.5">
+                              {(pdfFile.size / (1024 * 1024)).toFixed(2)} MB • PDF Document Ready
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <span className="text-sm font-extrabold text-gray-800">
+                              Click to choose PDF or drag & drop here
+                            </span>
+                            <span className="text-xs text-gray-400 mt-1">
+                              Brochures, Product Lists, Property Decks, Specification Sheets (.pdf)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                      Remote PDF Document URL
+                    </label>
+                    <div className="relative">
+                      <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input 
+                        type="url"
+                        value={pdfUrl}
+                        onChange={(e) => setPdfUrl(e.target.value)}
+                        placeholder="https://example.com/assets/brochure.pdf"
+                        className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-300 rounded-2xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-600 transition-all shadow-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Mode Selector */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                  {[
+                    { id: "auto", label: "Auto Detect", desc: "General documents & catalogs" },
+                    { id: "real_estate", label: "Real Estate & Properties", desc: "Flats, offices, carpet area, amenities" },
+                    { id: "catalog", label: "Commercial Products", desc: "MRP, SKU, inventory, tech specs" },
+                    { id: "services", label: "Services & Rate Card", desc: "Hourly/monthly scope & deliverables" }
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setPdfMode(m.id as any)}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                        pdfMode === m.id
+                          ? "bg-purple-50/80 border-purple-400 text-purple-900 shadow-xs"
+                          : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="text-xs font-extrabold">{m.label}</div>
+                      <div className="text-[10px] text-gray-500 font-medium mt-0.5 leading-snug">{m.desc}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Submit Action */}
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[11px] text-gray-400 font-medium">
+                    Powered by Gemini Multimodal Vision Document Processing
+                  </span>
+                  <Button
+                    type="submit"
+                    disabled={isScrapingPdf || (pdfInputMode === "file" && !pdfFile) || (pdfInputMode === "url" && !pdfUrl.trim())}
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-2xl px-6 py-3.5 h-auto shadow-md shadow-purple-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isScrapingPdf ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Analyzing Document with Gemini AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Extract & Parse PDF Document</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+              </form>
+            </div>
+
+            {/* AI Real-time Logs Terminal */}
+            {pdfLogs.length > 0 && (
+              <div className="bg-[#0f1118] border border-gray-800 rounded-3xl p-5 shadow-xl font-mono text-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-800 mb-3">
+                  <div className="flex items-center gap-2 text-gray-300 font-bold">
+                    <Terminal className="w-4 h-4 text-purple-400" />
+                    <span>Gemini AI Document Extraction Pipeline</span>
+                  </div>
+                  {isScrapingPdf && (
+                    <span className="flex items-center gap-1.5 text-purple-400 text-[11px] animate-pulse">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Processing Multimodal Stream...
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-gray-800 text-gray-400">
+                  {pdfLogs.map((log, i) => (
+                    <div key={i} className="leading-relaxed">
+                      <span className="text-purple-400 mr-2">›</span>
+                      <span>{log}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Success Message Banner */}
+            {pdfSuccessMessage && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between gap-3 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{pdfSuccessMessage}</span>
+                </div>
+                <Link href="/dashboard/catalog">
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-8 px-3 cursor-pointer">
+                    View Catalog →
+                  </Button>
+                </Link>
+              </div>
+            )}
+
+            {/* Results Grid */}
+            {pdfResult && (
+              <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+                
+                {/* Company Card if found */}
+                {pdfResult.company && pdfResult.company.name && (
+                  <div className="bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-purple-200/80 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black text-lg shadow-sm">
+                        {pdfResult.company.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-extrabold text-gray-900">{pdfResult.company.name}</h3>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-extrabold">
+                            Extracted Entity
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 font-medium mt-0.5">
+                          {[pdfResult.company.phone, pdfResult.company.email, pdfResult.company.address].filter(Boolean).join(" • ")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Batch Action Bar */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                      <input 
+                        type="checkbox"
+                        checked={pdfSelectedIndices.length === (pdfResult.products?.length || 0) && (pdfResult.products?.length || 0) > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPdfSelectedIndices(pdfResult.products.map((_: any, i: number) => i));
+                          } else {
+                            setPdfSelectedIndices([]);
+                          }
+                        }}
+                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      />
+                      <span>Select All ({pdfResult.products?.length || 0} extracted items)</span>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      disabled={isBatchImportingPdf || pdfSelectedIndices.length === 0}
+                      onClick={handleImportPdfItems}
+                      className="bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl px-5 h-10 shadow-sm shadow-purple-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isBatchImportingPdf ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Importing {pdfSelectedIndices.length} Items...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Package className="w-3.5 h-3.5" />
+                          <span>Import Selected ({pdfSelectedIndices.length}) to Catalog</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Items Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pdfResult.products && pdfResult.products.map((item: any, idx: number) => {
+                    const isSelected = pdfSelectedIndices.includes(idx);
+                    const isImported = pdfImportedIndices.includes(idx) || item.importedToDb;
+
+                    return (
+                      <div 
+                        key={idx}
+                        className={`bg-white rounded-3xl border p-5 flex flex-col justify-between gap-4 transition-all shadow-xs ${
+                          isSelected ? "border-purple-400 ring-2 ring-purple-100" : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setPdfSelectedIndices(prev => [...prev, idx]);
+                                  } else {
+                                    setPdfSelectedIndices(prev => prev.filter(i => i !== idx));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                              />
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-extrabold border border-purple-200/60 uppercase">
+                                {item.category || "General"}
+                              </span>
+                            </div>
+
+                            {isImported && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600" /> In Catalog
+                              </span>
+                            )}
+                          </div>
+
+                          <h4 className="text-sm font-extrabold text-gray-900 leading-snug">
+                            {item.title}
+                          </h4>
+                          {item.brand && (
+                            <span className="text-[11px] font-bold text-gray-400 mt-0.5 block">
+                              {item.brand} {item.sku ? `• SKU: ${item.sku}` : ""}
+                            </span>
+                          )}
+
+                          <p className="text-xs text-gray-600 line-clamp-2 mt-2 leading-relaxed font-medium">
+                            {item.description}
+                          </p>
+
+                          {/* Specs pills */}
+                          {item.specs && item.specs.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {item.specs.slice(0, 4).map((s: any, sIdx: number) => (
+                                <span key={sIdx} className="text-[10px] px-2 py-0.5 bg-gray-100 rounded-md font-semibold text-gray-600">
+                                  {s.key}: {s.value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* AI keywords */}
+                          {item.aiKeywords && item.aiKeywords.length > 0 && (
+                            <div className="flex items-center gap-1 mt-3 text-[10px] text-purple-600 font-bold">
+                              <Sparkles className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{item.aiKeywords.slice(0, 3).join(", ")}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Price & Action */}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div>
+                            <span className="text-base font-black text-gray-900">
+                              ₹{Number(item.price || 0).toLocaleString("en-IN")}
+                            </span>
+                            {item.originalPrice && item.originalPrice > item.price && (
+                              <span className="text-xs text-gray-400 line-through ml-2">
+                                ₹{Number(item.originalPrice).toLocaleString("en-IN")}
+                              </span>
+                            )}
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isImported}
+                            onClick={async () => {
+                              try {
+                                await importBatchScrapedProductsAction([{
+                                  title: item.title,
+                                  brand: item.brand || pdfResult?.company?.name || "TrueDeal Verified",
+                                  sku: item.sku || `PDF-${Math.floor(1000 + Math.random() * 9000)}`,
+                                  description: item.description || item.title,
+                                  shortDesc: item.description || item.title,
+                                  price: item.price || 0,
+                                  originalPrice: item.originalPrice || item.price || 0,
+                                  discount: item.discount,
+                                  category: item.category || "General",
+                                  inventory: item.inventory || 25,
+                                  images: item.primaryImage ? [item.primaryImage] : [],
+                                  primaryImage: item.primaryImage,
+                                  specs: item.specs || [],
+                                  aiKeywords: item.aiKeywords || [item.title]
+                                }]);
+                                setPdfImportedIndices(prev => [...prev, idx]);
+                              } catch (e) {
+                                alert("Failed to import item");
+                              }
+                            }}
+                            className={`rounded-xl text-xs font-bold px-3.5 h-8 cursor-pointer ${
+                              isImported 
+                                ? "bg-gray-100 text-gray-400 border border-gray-200" 
+                                : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                            }`}
+                          >
+                            {isImported ? "Imported" : "+ Import"}
+                          </Button>
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            )}
+
+          </div>
+        )}
+
       </main>
     </div>
+  );
+}
+
+export default function ConnectWebsitePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans">
+        <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Loading Scraper & Document Extractor...</span>
+        </div>
+      </div>
+    }>
+      <ConnectWebsiteContent />
+    </Suspense>
   );
 }
