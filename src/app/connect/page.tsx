@@ -568,10 +568,10 @@ function ConnectWebsiteContent() {
     <div className="min-h-screen flex flex-col font-sans bg-[#F8F9FA] text-gray-900">
       
       {/* Top Header */}
-      <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 lg:px-10 flex-shrink-0 z-10 shadow-sm w-full">
-        <div className="flex items-center gap-12">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <h2 className="text-[19px] font-bold text-gray-900 hover:text-indigo-600 transition-colors">
+      <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-6 lg:px-10 flex-shrink-0 z-10 shadow-xs w-full">
+        <div className="flex items-center gap-4 sm:gap-12 min-w-0">
+          <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+            <h2 className="text-base sm:text-[19px] font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
               Marketplace Dashboard
             </h2>
           </Link>
@@ -587,80 +587,86 @@ function ConnectWebsiteContent() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <Link href="/dashboard/catalog/add">
-            <Button className="bg-[#3B28CC] hover:bg-[#2c1d99] text-white rounded-xl px-4 h-9 font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
+            <Button className="bg-[#3B28CC] hover:bg-[#2c1d99] text-white rounded-xl px-3 sm:px-4 h-9 font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" />
-              <span>Create Listing</span>
+              <span className="hidden xs:inline sm:inline">Create Listing</span>
+              <span className="inline xs:hidden sm:hidden">Add</span>
             </Button>
           </Link>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 overflow-y-auto p-6 md:p-10 w-full flex flex-col items-center">
+      <main className="flex-1 overflow-y-auto p-3.5 sm:p-6 md:p-10 w-full flex flex-col items-center overflow-x-hidden">
         
         {/* Title & Mode Switcher */}
-        <div className="text-center mb-8 max-w-2xl">
-          <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-3 shadow-sm">
+        <div className="text-center mb-6 sm:mb-8 max-w-2xl w-full">
+          <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-2.5 sm:mb-3 shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> AI Product & Website Scraper
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-[#111111] tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#111111] tracking-tight mb-2 leading-tight">
             Import Products & Scrape Website
           </h1>
-          <p className="text-sm md:text-base font-medium text-gray-600">
+          <p className="text-xs sm:text-sm md:text-base font-medium text-gray-600 px-2">
             Easily import single products from any URL into your catalog, or scrape an entire website domain in batch.
           </p>
 
           {/* Mode Switch Tabs */}
-          <div className="mt-6 inline-flex p-1.5 bg-gray-200/80 rounded-2xl gap-1 shadow-inner">
-            <button
-              onClick={() => {
-                setScrapeMode("single");
-                setImportSuccessMessage(null);
-              }}
-              className={`px-5 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 cursor-pointer ${
-                scrapeMode === "single"
-                  ? "bg-white text-indigo-700 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4 text-indigo-600" />
-              <span>Import Single Product by URL</span>
-            </button>
+          <div className="mt-5 sm:mt-6 w-full max-w-full overflow-x-auto pb-1 scrollbar-none flex justify-start sm:justify-center">
+            <div className="inline-flex p-1.5 bg-gray-200/90 rounded-2xl gap-1 shadow-inner shrink-0 sm:shrink">
+              <button
+                type="button"
+                onClick={() => {
+                  setScrapeMode("single");
+                  setImportSuccessMessage(null);
+                }}
+                className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-extrabold text-[11px] sm:text-xs transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 ${
+                  scrapeMode === "single"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
+                <span className="whitespace-nowrap">Single Product URL</span>
+              </button>
 
-            <button
-              onClick={() => {
-                setScrapeMode("full");
-                setImportSuccessMessage(null);
-              }}
-              className={`px-5 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 cursor-pointer ${
-                scrapeMode === "full"
-                  ? "bg-white text-indigo-700 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <Globe className="w-4 h-4 text-indigo-600" />
-              <span>Full Website Domain Scraper</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScrapeMode("full");
+                  setImportSuccessMessage(null);
+                }}
+                className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-extrabold text-[11px] sm:text-xs transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 ${
+                  scrapeMode === "full"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
+                <span className="whitespace-nowrap">Full Website Domain</span>
+              </button>
 
-            <button
-              onClick={() => {
-                setScrapeMode("pdf");
-                setImportSuccessMessage(null);
-              }}
-              className={`px-5 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center gap-2 cursor-pointer ${
-                scrapeMode === "pdf"
-                  ? "bg-white text-purple-700 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <FileUp className="w-4 h-4 text-purple-600" />
-              <span>Upload PDF / Catalog Document</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 font-extrabold uppercase tracking-wide">
-                Gemini AI
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScrapeMode("pdf");
+                  setImportSuccessMessage(null);
+                }}
+                className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-extrabold text-[11px] sm:text-xs transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0 ${
+                  scrapeMode === "pdf"
+                    ? "bg-white text-purple-700 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <FileUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
+                <span className="whitespace-nowrap">Upload PDF Document</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 font-extrabold uppercase tracking-wide hidden sm:inline-block">
+                  Gemini AI
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -671,9 +677,9 @@ function ConnectWebsiteContent() {
           <div className="w-full max-w-4xl flex flex-col gap-6 animate-in fade-in duration-200">
             
             {/* URL Input Box */}
-            <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm">
+            <div className="bg-white rounded-3xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm">
               <form onSubmit={handleScrapeSingleProduct} className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Paste Any Product / Listing URL
                   </label>
@@ -690,7 +696,7 @@ function ConnectWebsiteContent() {
                       value={singleUrl}
                       onChange={(e) => setSingleUrl(e.target.value)}
                       placeholder="https://example.com/products/item-name or product URL" 
-                      className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-300 rounded-2xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-sm"
+                      className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-white border border-gray-300 rounded-2xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all shadow-xs"
                       disabled={isScrapingSingle}
                       required
                     />
@@ -699,7 +705,7 @@ function ConnectWebsiteContent() {
                   <Button 
                     type="submit"
                     disabled={isScrapingSingle || !singleUrl.trim()}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-2xl px-6 py-3.5 h-auto shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-2xl px-6 py-3 sm:py-3.5 h-auto shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
                   >
                     {isScrapingSingle ? (
                       <>
@@ -715,12 +721,12 @@ function ConnectWebsiteContent() {
                   </Button>
                 </div>
                 {singleError && (
-                  <div className="mt-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center justify-between gap-3">
+                  <div className="mt-2 p-3 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <span>⚠️ {singleError}</span>
                     <button 
                       type="button" 
                       onClick={() => handleScrapeSingleProduct()}
-                      className="px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold rounded-lg transition-colors cursor-pointer"
+                      className="px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
                     >
                       Retry
                     </button>
@@ -731,31 +737,31 @@ function ConnectWebsiteContent() {
 
             {/* Loading Indicator */}
             {isScrapingSingle && (
-              <div className="bg-white rounded-3xl border border-indigo-100 p-8 shadow-sm text-center flex flex-col items-center justify-center gap-3 animate-in fade-in">
+              <div className="bg-white rounded-3xl border border-indigo-100 p-6 sm:p-8 shadow-sm text-center flex flex-col items-center justify-center gap-3 animate-in fade-in">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center animate-pulse">
                   <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
                 </div>
-                <h3 className="font-extrabold text-base text-gray-900">Scraping Product Page & Schema.org Metadata...</h3>
+                <h3 className="font-extrabold text-sm sm:text-base text-gray-900">Scraping Product Page & Schema.org Metadata...</h3>
                 <p className="text-xs text-gray-500 max-w-md">Extracting high-resolution images, specifications, price, brand info, and generating AI SEO visibility score.</p>
               </div>
             )}
 
             {/* Success Import Notification */}
             {importSuccessMessage && (
-              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in zoom-in-95 duration-200">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
-                    <CheckCheck className="w-6 h-6" />
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-3xl p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in zoom-in-95 duration-200">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                    <CheckCheck className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-sm text-emerald-950">Successfully Imported to Your Catalog!</h4>
-                    <p className="text-xs text-emerald-800 font-medium">{importSuccessMessage}</p>
+                    <h4 className="font-extrabold text-xs sm:text-sm text-emerald-950">Successfully Imported to Your Catalog!</h4>
+                    <p className="text-[11px] sm:text-xs text-emerald-800 font-medium mt-0.5">{importSuccessMessage}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <Link href="/dashboard/catalog">
-                    <Button className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Link href="/dashboard/catalog" className="flex-1 sm:flex-initial">
+                    <Button className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm cursor-pointer">
                       View in Catalog →
                     </Button>
                   </Link>
@@ -766,12 +772,11 @@ function ConnectWebsiteContent() {
                       setSingleUrl("");
                       setImportSuccessMessage(null);
                     }}
-                    className="border-emerald-300 text-emerald-900 hover:bg-emerald-100 text-xs font-bold rounded-xl h-9 px-4"
+                    className="flex-1 sm:flex-initial border-emerald-300 text-emerald-900 hover:bg-emerald-100 text-xs font-bold rounded-xl h-9 px-4 cursor-pointer"
                   >
                     Import Another
                   </Button>
                 </div>
-              </div>
             )}
 
             {/* Scraped Product Preview & Card Customizer */}
@@ -795,18 +800,18 @@ function ConnectWebsiteContent() {
               <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-3 duration-300">
                 
                 {/* Header Banner */}
-                <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-5 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white p-4 sm:p-5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-indigo-300">
-                      <Sparkles className="w-5 h-5" />
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/10 flex items-center justify-center text-indigo-300 shrink-0">
+                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div>
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300 block">AI Product Extraction Result</span>
-                      <h3 className="font-black text-base text-white">Review & Import as Product Card</h3>
+                      <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-indigo-300 block">AI Product Extraction Result</span>
+                      <h3 className="font-black text-sm sm:text-base text-white">Review & Import as Product Card</h3>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-400/30">
                       <CheckCircle2 className="w-3.5 h-3.5" /> {singleProduct.aiVisibility}% AI Visibility
                     </span>
@@ -814,7 +819,7 @@ function ConnectWebsiteContent() {
                 </div>
 
                 {/* Product Details Grid */}
-                <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8">
                   
                   {/* Left Column: Image Preview & Gallery */}
                   <div className="lg:col-span-5 flex flex-col gap-4">
@@ -1068,14 +1073,14 @@ function ConnectWebsiteContent() {
           <div className="w-full max-w-5xl flex flex-col gap-6 animate-in fade-in duration-200">
             
             {/* URL Input & Scraper Launcher */}
-            <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <div className="bg-white rounded-3xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 mb-3">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Enter Your Store / Company Website URL (Batch Scrape All Products)
                 </label>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col md:flex-row gap-3 sm:gap-4">
                 <div className="relative flex-1">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-400">
                     <LinkIcon className="w-4 h-4" />
@@ -1085,7 +1090,7 @@ function ConnectWebsiteContent() {
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://your-store.com" 
-                    className="w-full pl-11 pr-4 py-4 bg-white border border-gray-300 rounded-2xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-[#5235E8]/10 focus:border-[#5235E8] transition-all shadow-sm"
+                    className="w-full pl-11 pr-4 py-3 sm:py-4 bg-white border border-gray-300 rounded-2xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-[#5235E8]/10 focus:border-[#5235E8] transition-all shadow-xs"
                     disabled={isScraping}
                   />
                 </div>
@@ -1093,7 +1098,7 @@ function ConnectWebsiteContent() {
                 <Button 
                   onClick={handleStartWebsiteScrape}
                   disabled={isScraping || !url}
-                  className="bg-[#5235E8] hover:bg-[#432bc7] text-white font-bold text-sm rounded-2xl px-8 py-4 h-auto shadow-md shadow-[#5235E8]/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full md:w-auto bg-[#5235E8] hover:bg-[#432bc7] text-white font-bold text-xs sm:text-sm rounded-2xl px-6 sm:px-8 py-3.5 sm:py-4 h-auto shadow-md shadow-[#5235E8]/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isScraping ? (
                     <>
@@ -1111,7 +1116,7 @@ function ConnectWebsiteContent() {
 
               {/* Progress Indicator */}
               {isScraping && (
-                <div className="mt-6 p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex flex-col gap-2 animate-in fade-in duration-200">
+                <div className="mt-4 sm:mt-6 p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex flex-col gap-2 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
                     <span className="flex items-center gap-2">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
@@ -1134,35 +1139,35 @@ function ConnectWebsiteContent() {
               <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 
                 {/* Stats Header Bar */}
-                <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xl border border-emerald-100 shrink-0">
+                <div className="bg-white rounded-3xl border border-gray-200 p-4 sm:p-6 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-5">
+                  <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-lg sm:text-xl border border-emerald-100 shrink-0">
                       ✓
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-xl font-extrabold text-gray-900">{result.company?.name || "Ingested Store"}</h2>
-                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[11px] rounded-full border border-emerald-200">
+                        <h2 className="text-lg sm:text-xl font-extrabold text-gray-900">{result.company?.name || "Ingested Store"}</h2>
+                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] sm:text-[11px] rounded-full border border-emerald-200">
                           Scrape Complete
                         </span>
                         {importedSections.includes("portfolio") && (
-                          <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[11px] rounded-full border border-indigo-200 flex items-center gap-1">
+                          <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] sm:text-[11px] rounded-full border border-indigo-200 flex items-center gap-1">
                             <Sparkles className="w-3 h-3 text-indigo-600" /> Portfolio Synced
                           </span>
                         )}
                       </div>
-                      <p className="text-xs font-medium text-gray-500 mt-0.5">
+                      <p className="text-[11px] sm:text-xs font-medium text-gray-500 mt-0.5">
                         Scraped {result.stats?.totalPagesCrawled || result.crawledPages?.length || 0} pages · Extracted {result.stats?.totalProductsScraped || result.products?.length || 0} products · {result.stats?.totalReviewsScraped || result.company?.reviews?.length || 0} reviews · {result.company?.gallery?.length || 0} gallery photos
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:flex xl:flex-wrap items-center gap-2.5 w-full xl:w-auto">
                     {/* 1-Click Sync Everything */}
                     <Button 
                       onClick={handleSyncEverything}
                       disabled={isSyncingAll || isImportingPortfolio}
-                      className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl h-10 px-4 shadow-md shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                      className="w-full xl:w-auto bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl h-10 px-4 shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all truncate"
                     >
                       {isSyncingAll ? (
                         <>
@@ -1181,7 +1186,7 @@ function ConnectWebsiteContent() {
                     <Button 
                       onClick={handleImportFullPortfolio}
                       disabled={isImportingPortfolio || isSyncingAll}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                      className="w-full xl:w-auto bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-4 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all truncate"
                     >
                       {isImportingPortfolio ? (
                         <>
@@ -1196,14 +1201,14 @@ function ConnectWebsiteContent() {
                       )}
                     </Button>
 
-                    <Link href={`/portfolio/${syncedPortfolioSlug || (result.company as any)?.slug || result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
-                      <Button variant="outline" className="text-xs font-bold rounded-xl h-10 px-3.5 flex items-center gap-1.5 border-gray-200 hover:bg-gray-50 cursor-pointer">
+                    <Link href={`/portfolio/${syncedPortfolioSlug || (result.company as any)?.slug || result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank" className="w-full sm:w-auto">
+                      <Button variant="outline" className="w-full sm:w-auto text-xs font-bold rounded-xl h-10 px-3.5 flex items-center justify-center gap-1.5 border-gray-200 hover:bg-gray-50 cursor-pointer">
                         <Eye className="w-3.5 h-3.5" /> Storefront ↗
                       </Button>
                     </Link>
 
-                    <Link href="/dashboard/portfolio">
-                      <Button variant="outline" className="text-xs font-bold rounded-xl h-10 px-3.5 flex items-center gap-1.5 border-gray-200 hover:bg-gray-50 cursor-pointer">
+                    <Link href="/dashboard/portfolio" className="w-full sm:w-auto">
+                      <Button variant="outline" className="w-full sm:w-auto text-xs font-bold rounded-xl h-10 px-3.5 flex items-center justify-center gap-1.5 border-gray-200 hover:bg-gray-50 cursor-pointer">
                         <Building2 className="w-3.5 h-3.5" /> Portfolio Builder →
                       </Button>
                     </Link>
@@ -1212,26 +1217,26 @@ function ConnectWebsiteContent() {
 
                 {/* Portfolio Sync Success Banner */}
                 {portfolioSyncMessage && (
-                  <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 border-2 border-emerald-300 rounded-3xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in zoom-in-95 duration-200">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
-                        <CheckCheck className="w-6 h-6" />
+                  <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 border-2 border-emerald-300 rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start sm:items-center gap-3.5">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                        <CheckCheck className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
                       <div>
-                        <h4 className="font-extrabold text-sm text-emerald-950">Portfolio & Reviews Synchronized!</h4>
-                        <p className="text-xs text-emerald-800 font-medium">{portfolioSyncMessage}</p>
+                        <h4 className="font-extrabold text-xs sm:text-sm text-emerald-950">Portfolio & Reviews Synchronized!</h4>
+                        <p className="text-[11px] sm:text-xs text-emerald-800 font-medium mt-0.5">{portfolioSyncMessage}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <Link href="/dashboard/portfolio">
-                        <Button className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm cursor-pointer">
-                          View in Portfolio Builder →
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Link href="/dashboard/portfolio" className="flex-1 sm:flex-initial">
+                        <Button className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm cursor-pointer">
+                          View in Portfolio →
                         </Button>
                       </Link>
-                      <Link href={`/portfolio/${syncedPortfolioSlug || (result.company as any)?.slug || result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank">
-                        <Button variant="outline" className="border-emerald-300 text-emerald-900 hover:bg-emerald-100 text-xs font-bold rounded-xl h-9 px-3.5 cursor-pointer">
-                          View Live Storefront ↗
+                      <Link href={`/portfolio/${syncedPortfolioSlug || (result.company as any)?.slug || result.company?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || "seller-store"}`} target="_blank" className="flex-1 sm:flex-initial">
+                        <Button variant="outline" className="w-full sm:w-auto border-emerald-300 text-emerald-900 hover:bg-emerald-100 text-xs font-bold rounded-xl h-9 px-3.5 cursor-pointer">
+                          Storefront ↗
                         </Button>
                       </Link>
                     </div>
@@ -1239,26 +1244,27 @@ function ConnectWebsiteContent() {
                 )}
 
                 {/* Sub-Tabs */}
-                <div className="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto text-xs font-bold">
+                <div className="flex items-center gap-1.5 sm:gap-2 border-b border-gray-200 pb-2 overflow-x-auto scrollbar-none text-xs font-bold w-full">
                   {[
-                    { id: "products", label: `Products & Offerings (${result.products?.length || 0})`, icon: Package },
-                    { id: "company", label: "Company Profile", icon: Building2 },
-                    { id: "contact", label: "Address & Hours", icon: MapPin },
-                    { id: "reviews", label: `Customer Reviews (${result.company?.reviews?.length || 0})`, icon: Star },
-                    { id: "gallery", label: `Photo Gallery (${result.company?.gallery?.length || 0})`, icon: ImageIcon },
+                    { id: "products", label: `Products (${result.products?.length || 0})`, icon: Package },
+                    { id: "company", label: "Company", icon: Building2 },
+                    { id: "contact", label: "Contact & Hours", icon: MapPin },
+                    { id: "reviews", label: `Reviews (${result.company?.reviews?.length || 0})`, icon: Star },
+                    { id: "gallery", label: `Gallery (${result.company?.gallery?.length || 0})`, icon: ImageIcon },
                     { id: "faqs", label: `FAQs (${result.company?.faqs?.length || 0})`, icon: HelpCircle },
-                    { id: "pages", label: `Scraped Pages (${result.crawledPages?.length || 0})`, icon: FileText },
-                    { id: "logs", label: "Scraper Engine Logs", icon: Terminal }
+                    { id: "pages", label: `Pages (${result.crawledPages?.length || 0})`, icon: FileText },
+                    { id: "logs", label: "Logs", icon: Terminal }
                   ].map((t) => {
                     const Icon = t.icon;
                     return (
                       <button
                         key={t.id}
+                        type="button"
                         onClick={() => setActiveTab(t.id as any)}
-                        className={`px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+                        className={`px-3 sm:px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer text-[11px] sm:text-xs ${
                           activeTab === t.id
                             ? "bg-indigo-600 text-white shadow-sm"
-                            : "bg-white text-gray-600 hover:bg-gray-100"
+                            : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -1313,17 +1319,17 @@ function ConnectWebsiteContent() {
                       )}
 
                       {/* Main Batch Import & Filter Toolbar */}
-                      <div className="bg-white rounded-3xl border border-gray-200 p-5 shadow-sm flex flex-col gap-4">
+                      <div className="bg-white rounded-3xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col gap-3 sm:gap-4">
                         
                         {/* Top Action Row: Import All & Import Selected */}
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-gray-100">
                           
-                          <div className="flex flex-wrap items-center gap-2.5">
+                          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-2.5">
                             {/* Import All Button */}
                             <Button
                               onClick={handleImportAllScrapedProducts}
                               disabled={isBatchImporting || !result.products || result.products.length === 0}
-                              className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-black text-xs rounded-2xl h-11 px-6 shadow-md shadow-indigo-600/25 flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-black text-xs rounded-2xl h-11 px-5 sm:px-6 shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all"
                             >
                               {isBatchImporting ? (
                                 <>
@@ -1343,7 +1349,7 @@ function ConnectWebsiteContent() {
                               <Button
                                 onClick={handleImportSelectedProducts}
                                 disabled={isBatchImporting}
-                                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-2xl h-11 px-5 shadow-md shadow-purple-600/20 flex items-center gap-2 cursor-pointer active:scale-95 animate-in zoom-in-90 duration-150"
+                                className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-2xl h-11 px-5 shadow-md shadow-purple-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95 animate-in zoom-in-90 duration-150"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
                                 <span>Import Selected ({selectedProductIndices.length})</span>
@@ -1360,7 +1366,7 @@ function ConnectWebsiteContent() {
                                   selectAllFiltered(filteredIndices);
                                 }
                               }}
-                              className="px-3.5 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                              className="w-full sm:w-auto px-3.5 h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                             >
                               <Check className="w-3.5 h-3.5" />
                               <span>{isAllFilteredSelected ? "Deselect All" : `Select All Filtered (${filteredItems.length})`}</span>
@@ -1375,7 +1381,7 @@ function ConnectWebsiteContent() {
                               value={scrapedSearchQuery}
                               onChange={(e) => setScrapedSearchQuery(e.target.value)}
                               placeholder="Search scraped items..."
-                              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-xs"
                             />
                           </div>
 
@@ -1383,14 +1389,14 @@ function ConnectWebsiteContent() {
 
                         {/* Category Filter Pills */}
                         {categoriesList.length > 1 && (
-                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mr-1">Category:</span>
+                          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 text-xs">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mr-1 shrink-0">Category:</span>
                             {categoriesList.map((cat) => (
                               <button
                                 key={cat}
                                 type="button"
                                 onClick={() => setScrapedCategoryFilter(cat)}
-                                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                                   scrapedCategoryFilter === cat
                                     ? "bg-indigo-600 text-white shadow-xs"
                                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -1402,10 +1408,10 @@ function ConnectWebsiteContent() {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between text-[11px] font-semibold text-gray-500 pt-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] font-semibold text-gray-500 pt-1">
                           <span>Showing {filteredItems.length} of {result.products?.length || 0} scraped products</span>
                           {importedProductIndices.length > 0 && (
-                            <span className="text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            <span className="text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 self-start sm:self-auto">
                               ✓ {importedProductIndices.length} imported into catalog
                             </span>
                           )}
@@ -1414,7 +1420,7 @@ function ConnectWebsiteContent() {
                       </div>
 
                       {/* Products Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
                         {filteredItems.map(({ p, originalIndex }) => {
                           const isSelected = selectedProductIndices.includes(originalIndex);
                           const isImported = importedProductIndices.includes(originalIndex);
@@ -1577,27 +1583,27 @@ function ConnectWebsiteContent() {
 
                 {/* Tab 2: Company Profile */}
                 {activeTab === "company" && result.company && (
-                  <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm flex flex-col gap-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm flex flex-col gap-5 sm:gap-6">
                     
                     {/* Action Toolbar Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100">
                       <div>
                         <h4 className="font-extrabold text-sm text-indigo-950 flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-indigo-600" /> Company Profile & Branding
+                          <Building2 className="w-4 h-4 text-indigo-600 shrink-0" /> Company Profile & Branding
                         </h4>
-                        <p className="text-xs text-indigo-800/80">Extracted corporate overview, vision, and accreditation data.</p>
+                        <p className="text-xs text-indigo-800/80 mt-0.5">Extracted corporate overview, vision, and accreditation data.</p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                         {importedSections.includes("company") && (
-                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5 text-emerald-600" /> Synced with Portfolio
+                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center justify-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Synced with Portfolio
                           </span>
                         )}
                         <Button
                           onClick={handleImportProfileOnly}
                           disabled={importingSection === "company"}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                          className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                         >
                           {importingSection === "company" ? (
                             <>
@@ -1614,51 +1620,51 @@ function ConnectWebsiteContent() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
-                      <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 sm:pb-6 border-b border-gray-100">
+                      <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
                         {result.company.logo ? (
                           <img 
                             src={result.company.logo} 
                             alt="" 
-                            className="w-16 h-16 rounded-2xl object-contain border border-gray-200 p-2 bg-gray-50" 
+                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain border border-gray-200 p-2 bg-gray-50 shrink-0" 
                           />
                         ) : (
-                          <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-extrabold text-xl">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-extrabold text-lg sm:text-xl shrink-0">
                             {result.company.name?.charAt(0).toUpperCase() || "B"}
                           </div>
                         )}
-                        <div>
-                          <h3 className="text-xl font-extrabold text-gray-900">{result.company.name}</h3>
-                          <p className="text-xs font-medium text-indigo-600">{result.company.tagline}</p>
+                        <div className="min-w-0">
+                          <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 truncate">{result.company.name}</h3>
+                          <p className="text-xs font-medium text-indigo-600 line-clamp-1">{result.company.tagline}</p>
                         </div>
                       </div>
 
                       {result.company.gstin && (
-                        <div className="px-3.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-1.5 self-start sm:self-auto">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <div className="px-3.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>MahaRERA / Reg: {result.company.gstin}</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                      <div className="p-3.5 sm:p-4 rounded-2xl bg-gray-50 border border-gray-100">
                         <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Business Type</span>
-                        <span className="text-sm font-extrabold text-gray-900 mt-1 block">{result.company.businessType || "Digital Merchant & Services"}</span>
+                        <span className="text-xs sm:text-sm font-extrabold text-gray-900 mt-1 block">{result.company.businessType || "Digital Merchant & Services"}</span>
                       </div>
-                      <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                      <div className="p-3.5 sm:p-4 rounded-2xl bg-gray-50 border border-gray-100">
                         <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Year Established</span>
-                        <span className="text-sm font-extrabold text-gray-900 mt-1 block">{result.company.yearEstablished || "Active & Verified"}</span>
+                        <span className="text-xs sm:text-sm font-extrabold text-gray-900 mt-1 block">{result.company.yearEstablished || "Active & Verified"}</span>
                       </div>
-                      <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                      <div className="p-3.5 sm:p-4 rounded-2xl bg-gray-50 border border-gray-100">
                         <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Team Size</span>
-                        <span className="text-sm font-extrabold text-gray-900 mt-1 block">{result.company.teamSize || "Verified Team"}</span>
+                        <span className="text-xs sm:text-sm font-extrabold text-gray-900 mt-1 block">{result.company.teamSize || "Verified Team"}</span>
                       </div>
                     </div>
 
                     <div>
                       <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">About & Background Story</h4>
-                      <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                      <p className="text-xs sm:text-sm text-gray-700 leading-relaxed bg-gray-50 p-4 sm:p-5 rounded-2xl border border-gray-100">
                         {result.company.about}
                       </p>
                     </div>
@@ -1669,7 +1675,7 @@ function ConnectWebsiteContent() {
                         <div className="flex flex-wrap gap-2">
                           {result.company.certifications.map((cert, idx) => (
                             <div key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-900">
-                              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                               <span>{cert}</span>
                             </div>
                           ))}
@@ -1681,27 +1687,27 @@ function ConnectWebsiteContent() {
 
                 {/* Tab 3: Contact & Location */}
                 {activeTab === "contact" && result.company && (
-                  <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm flex flex-col gap-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm flex flex-col gap-5 sm:gap-6">
                     
                     {/* Action Toolbar Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
                       <div>
                         <h4 className="font-extrabold text-sm text-emerald-950 flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-emerald-600" /> Registered Location & Hours
+                          <MapPin className="w-4 h-4 text-emerald-600 shrink-0" /> Registered Location & Hours
                         </h4>
-                        <p className="text-xs text-emerald-800/80">Corporate address, phone, WhatsApp, and operating timings.</p>
+                        <p className="text-xs text-emerald-800/80 mt-0.5">Corporate address, phone, WhatsApp, and operating timings.</p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                         {importedSections.includes("contact") && (
-                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5 text-emerald-600" /> Synced with Portfolio
+                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center justify-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Synced with Portfolio
                           </span>
                         )}
                         <Button
                           onClick={handleImportProfileOnly}
                           disabled={importingSection === "company"}
-                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                          className="w-full sm:w-auto justify-center bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-9 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                         >
                           {importingSection === "company" ? (
                             <>
@@ -1718,23 +1724,23 @@ function ConnectWebsiteContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <div className="flex flex-col gap-6">
-                        <h3 className="text-lg font-extrabold text-gray-900">Contact & Headquarter Details</h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+                      <div className="flex flex-col gap-5 sm:gap-6">
+                        <h3 className="text-base sm:text-lg font-extrabold text-gray-900">Contact & Headquarter Details</h3>
                         
-                        <div className="space-y-4">
-                          <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="flex items-start gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-gray-50 border border-gray-100">
                             <MapPin className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                             <div>
                               <span className="text-[11px] font-bold text-gray-500 uppercase block">Registered Address</span>
-                              <span className="text-sm font-bold text-gray-900 block mt-0.5">
+                              <span className="text-xs sm:text-sm font-bold text-gray-900 block mt-0.5 leading-relaxed">
                                 {result.company.address ? `${result.company.address}${result.company.city ? `, ${result.company.city}` : ""}${result.company.pincode ? ` - ${result.company.pincode}` : ""}` : `${result.company.name} Headquarters`}
                               </span>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                            <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-gray-50 border border-gray-100">
                               <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
                               <div>
                                 <span className="text-[10px] font-bold text-gray-500 uppercase block">Phone</span>
@@ -1742,7 +1748,7 @@ function ConnectWebsiteContent() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                            <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
                               <MessageSquare className="w-4 h-4 text-emerald-700 shrink-0" />
                               <div>
                                 <span className="text-[10px] font-bold text-emerald-800 uppercase block">WhatsApp Support</span>
@@ -1770,7 +1776,7 @@ function ConnectWebsiteContent() {
 
                       {/* Working Hours */}
                       <div>
-                        <h3 className="text-lg font-extrabold text-gray-900 mb-4">Office & Operational Timings</h3>
+                        <h3 className="text-base sm:text-lg font-extrabold text-gray-900 mb-3 sm:mb-4">Office & Operational Timings</h3>
                         <div className="bg-gray-50 rounded-2xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
                           {result.company.workingHours?.map((wh, idx) => (
                             <div key={idx} className="p-3 px-4 flex items-center justify-between text-xs">
@@ -1788,36 +1794,36 @@ function ConnectWebsiteContent() {
 
                 {/* Tab 4: Reviews */}
                 {activeTab === "reviews" && result.company && (
-                  <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-4 sm:gap-5">
                     
                     {/* Action Header Banner */}
-                    <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0 border border-amber-200/60">
-                          <Star className="w-6 h-6 fill-amber-400 text-amber-500" />
+                    <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-black shrink-0 border border-amber-200/60">
+                          <Star className="w-5 h-5 sm:w-6 sm:h-6 fill-amber-400 text-amber-500" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-base text-gray-900">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-black text-sm sm:text-base text-gray-900">
                               Customer Reviews & Testimonials ({result.company.reviews?.length || 0})
                             </h3>
                             {importedSections.includes("reviews") && (
-                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                                 <Check className="w-3 h-3 text-emerald-600" /> Synced to Portfolio
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">
-                            Extracted customer feedback and verified ratings from {result.domain}. Import them to display on your public storefront.
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Extracted customer feedback and verified ratings from {result.domain}.
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="w-full sm:w-auto shrink-0">
                         <Button
                           onClick={handleImportReviewsOnly}
                           disabled={importingSection === "reviews" || !result.company.reviews || result.company.reviews.length === 0}
-                          className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                          className="w-full sm:w-auto justify-center bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
                         >
                           {importingSection === "reviews" ? (
                             <>
@@ -1827,7 +1833,7 @@ function ConnectWebsiteContent() {
                           ) : (
                             <>
                               <Star className="w-3.5 h-3.5 fill-white text-white" />
-                              <span>Import Reviews to Portfolio ({result.company.reviews?.length || 0})</span>
+                              <span>Import Reviews ({result.company.reviews?.length || 0})</span>
                             </>
                           )}
                         </Button>
@@ -1836,9 +1842,9 @@ function ConnectWebsiteContent() {
 
                     {/* Reviews List */}
                     {result.company.reviews && result.company.reviews.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
                         {result.company.reviews.map((rev, idx) => (
-                          <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm flex flex-col justify-between gap-3 hover:border-amber-300 transition-colors">
+                          <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-3 hover:border-amber-300 transition-colors">
                             <div>
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-1 bg-amber-50 text-amber-800 px-2.5 py-1 rounded-full text-xs font-black">
@@ -1860,7 +1866,7 @@ function ConnectWebsiteContent() {
                         ))}
                       </div>
                     ) : (
-                      <div className="bg-white rounded-3xl border border-gray-200 p-10 text-center flex flex-col items-center justify-center gap-2">
+                      <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-8 sm:p-10 text-center flex flex-col items-center justify-center gap-2">
                         <Star className="w-10 h-10 text-gray-300 mb-1" />
                         <h4 className="font-bold text-sm text-gray-700">No Direct Reviews Found on Discovered Pages</h4>
                         <p className="text-xs text-gray-400 max-w-sm">Default verified 5-star testimonials will be generated when importing your full portfolio profile.</p>
@@ -1872,36 +1878,36 @@ function ConnectWebsiteContent() {
 
                 {/* Tab 5: Gallery */}
                 {activeTab === "gallery" && result.company && (
-                  <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-4 sm:gap-5">
                     
                     {/* Action Header Banner */}
-                    <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0 border border-indigo-100">
-                          <ImageIcon className="w-6 h-6" />
+                    <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0 border border-indigo-100">
+                          <ImageIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-base text-gray-900">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-black text-sm sm:text-base text-gray-900">
                               Showcase & Photo Gallery ({result.company.gallery?.length || 0})
                             </h3>
                             {importedSections.includes("gallery") && (
-                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                                 <Check className="w-3 h-3 text-emerald-600" /> Synced to Gallery
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 mt-0.5">
                             High-resolution project, facility, and storefront photography scraped from {result.domain}.
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="w-full sm:w-auto shrink-0">
                         <Button
                           onClick={handleImportGalleryOnly}
                           disabled={importingSection === "gallery" || !result.company.gallery || result.company.gallery.length === 0}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                          className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
                         >
                           {importingSection === "gallery" ? (
                             <>
@@ -1911,7 +1917,7 @@ function ConnectWebsiteContent() {
                           ) : (
                             <>
                               <ImageIcon className="w-3.5 h-3.5" />
-                              <span>Import Gallery to Portfolio ({result.company.gallery?.length || 0})</span>
+                              <span>Import Gallery ({result.company.gallery?.length || 0})</span>
                             </>
                           )}
                         </Button>
@@ -1920,7 +1926,7 @@ function ConnectWebsiteContent() {
 
                     {/* Gallery Grid */}
                     {result.company.gallery && result.company.gallery.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
                         {result.company.gallery.map((g, idx) => (
                           <div key={idx} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm group hover:border-indigo-300 transition-colors">
                             <div className="aspect-video w-full overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -1938,7 +1944,7 @@ function ConnectWebsiteContent() {
                         ))}
                       </div>
                     ) : (
-                      <div className="bg-white rounded-3xl border border-gray-200 p-10 text-center flex flex-col items-center justify-center gap-2">
+                      <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-8 sm:p-10 text-center flex flex-col items-center justify-center gap-2">
                         <ImageIcon className="w-10 h-10 text-gray-300 mb-1" />
                         <h4 className="font-bold text-sm text-gray-700">No Gallery Photos Discovered</h4>
                         <p className="text-xs text-gray-400 max-w-sm">You can add custom storefront showcase photos anytime in the Portfolio Builder.</p>
@@ -1950,36 +1956,36 @@ function ConnectWebsiteContent() {
 
                 {/* Tab 6: FAQs */}
                 {activeTab === "faqs" && result.company && (
-                  <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-4 sm:gap-5">
                     
                     {/* Action Header Banner */}
-                    <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0 border border-indigo-100">
-                          <HelpCircle className="w-6 h-6" />
+                    <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0 border border-indigo-100">
+                          <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-base text-gray-900">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-black text-sm sm:text-base text-gray-900">
                               Frequently Asked Questions ({result.company.faqs?.length || 0})
                             </h3>
                             {importedSections.includes("faqs") && (
-                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                                 <Check className="w-3 h-3 text-emerald-600" /> Synced to FAQs
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 mt-0.5">
                             Extracted customer FAQs and verified policies from {result.domain}.
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="w-full sm:w-auto shrink-0">
                         <Button
                           onClick={handleImportFaqsOnly}
                           disabled={importingSection === "faqs" || !result.company.faqs || result.company.faqs.length === 0}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                          className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl h-10 px-5 shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
                         >
                           {importingSection === "faqs" ? (
                             <>
@@ -1989,7 +1995,7 @@ function ConnectWebsiteContent() {
                           ) : (
                             <>
                               <HelpCircle className="w-3.5 h-3.5" />
-                              <span>Import FAQs to Portfolio ({result.company.faqs?.length || 0})</span>
+                              <span>Import FAQs ({result.company.faqs?.length || 0})</span>
                             </>
                           )}
                         </Button>
@@ -2000,9 +2006,9 @@ function ConnectWebsiteContent() {
                     {result.company.faqs && result.company.faqs.length > 0 ? (
                       <div className="space-y-3">
                         {result.company.faqs.map((faq, idx) => (
-                          <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:border-indigo-300 transition-colors">
-                            <h4 className="font-extrabold text-sm text-gray-900 flex items-center gap-2">
-                              <HelpCircle className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 shadow-sm hover:border-indigo-300 transition-colors">
+                            <h4 className="font-extrabold text-xs sm:text-sm text-gray-900 flex items-start gap-2 leading-snug">
+                              <HelpCircle className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                               <span>{faq.question}</span>
                             </h4>
                             <p className="text-xs text-gray-600 mt-2 pl-6 leading-relaxed font-normal">
@@ -2012,7 +2018,7 @@ function ConnectWebsiteContent() {
                         ))}
                       </div>
                     ) : (
-                      <div className="bg-white rounded-3xl border border-gray-200 p-10 text-center flex flex-col items-center justify-center gap-2">
+                      <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-8 sm:p-10 text-center flex flex-col items-center justify-center gap-2">
                         <HelpCircle className="w-10 h-10 text-gray-300 mb-1" />
                         <h4 className="font-bold text-sm text-gray-700">No Specific FAQs Found on Discovered Pages</h4>
                         <p className="text-xs text-gray-400 max-w-sm">Curated customer support and warranty FAQs will be populated automatically when importing.</p>
@@ -2024,21 +2030,21 @@ function ConnectWebsiteContent() {
 
                 {/* Tab 7: Crawled Pages Architecture */}
                 {activeTab === "pages" && (
-                  <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm">
-                    <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 overflow-hidden shadow-sm">
+                    <div className="p-3.5 sm:p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                       <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Discovered Site Architecture</span>
                       <span className="text-xs font-bold text-gray-500">{result.crawledPages?.length || 0} pages scraped</span>
                     </div>
                     <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
                       {result.crawledPages?.map((pg, idx) => (
-                        <div key={idx} className="p-3.5 px-5 flex items-center justify-between text-xs hover:bg-gray-50/50">
-                          <div className="flex items-center gap-3 truncate pr-4">
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 font-mono text-[10px] rounded uppercase font-bold">
+                        <div key={idx} className="p-3 sm:p-3.5 px-3.5 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 text-xs hover:bg-gray-50/50">
+                          <div className="flex items-center gap-2.5 truncate min-w-0 pr-2">
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 font-mono text-[10px] rounded uppercase font-bold shrink-0">
                               {pg.type}
                             </span>
                             <span className="font-semibold text-gray-900 truncate">{pg.url}</span>
                           </div>
-                          <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[11px] shrink-0">
+                          <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[11px] shrink-0 self-start sm:self-auto">
                             HTTP {pg.statusCode || 200} · {pg.itemsFound || 0} items
                           </span>
                         </div>
@@ -2066,30 +2072,30 @@ function ConnectWebsiteContent() {
 
         {/* Quick Edit & Import Modal for Scraped Items */}
         {editingScrapedItem && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl border border-gray-200 max-w-2xl w-full p-6 md:p-8 shadow-2xl overflow-y-auto max-h-[90vh] flex flex-col gap-5">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 max-w-2xl w-full p-4 sm:p-6 md:p-8 shadow-2xl overflow-y-auto max-h-[92vh] flex flex-col gap-4 sm:gap-5">
               
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
-                    <Edit3 className="w-5 h-5" />
+              <div className="flex items-start sm:items-center justify-between pb-3 sm:pb-4 border-b border-gray-100 gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black shrink-0">
+                    <Edit3 className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-base text-gray-900">Customize Scraped Product</h3>
-                    <p className="text-xs text-gray-500">Edit product specifications before importing to your catalog</p>
+                    <h3 className="font-extrabold text-sm sm:text-base text-gray-900 leading-tight">Customize Scraped Product</h3>
+                    <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">Edit specifications before importing to your catalog</p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => setEditingScrapedItem(null)}
-                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold flex items-center justify-center text-sm cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold flex items-center justify-center text-sm cursor-pointer shrink-0"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Form inputs */}
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:gap-4">
                 
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Product Title</label>
@@ -2100,11 +2106,11 @@ function ConnectWebsiteContent() {
                       ...editingScrapedItem,
                       product: { ...editingScrapedItem.product, title: e.target.value }
                     })}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                    className="w-full px-3.5 sm:px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Selling Price (₹)</label>
                     <input
@@ -2114,7 +2120,7 @@ function ConnectWebsiteContent() {
                         ...editingScrapedItem,
                         product: { ...editingScrapedItem.product, price: Number(e.target.value) || 0 }
                       })}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-extrabold text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                      className="w-full px-3.5 sm:px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-extrabold text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                     />
                   </div>
 
@@ -2127,12 +2133,12 @@ function ConnectWebsiteContent() {
                         ...editingScrapedItem,
                         product: { ...editingScrapedItem.product, originalPrice: Number(e.target.value) || 0 }
                       })}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                      className="w-full px-3.5 sm:px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-xs sm:text-sm text-gray-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Category</label>
                     <input
@@ -2142,7 +2148,7 @@ function ConnectWebsiteContent() {
                         ...editingScrapedItem,
                         product: { ...editingScrapedItem.product, category: e.target.value }
                       })}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                      className="w-full px-3.5 sm:px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                     />
                   </div>
 
@@ -2155,7 +2161,7 @@ function ConnectWebsiteContent() {
                         ...editingScrapedItem,
                         product: { ...editingScrapedItem.product, inventory: Number(e.target.value) || 0 }
                       })}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-xs text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                      className="w-full px-3.5 sm:px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-xs text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                     />
                   </div>
                 </div>
@@ -2176,12 +2182,12 @@ function ConnectWebsiteContent() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-100">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setEditingScrapedItem(null)}
-                  className="rounded-xl text-xs font-bold px-4 h-10 border-gray-200"
+                  className="w-full sm:w-auto rounded-xl text-xs font-bold px-4 h-10 border-gray-200 justify-center"
                 >
                   Cancel
                 </Button>
@@ -2189,7 +2195,7 @@ function ConnectWebsiteContent() {
                 <Button
                   type="button"
                   onClick={handleSaveAndImportModal}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl px-6 h-10 shadow-md shadow-indigo-600/20 flex items-center gap-1.5 cursor-pointer"
+                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl px-6 h-10 shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Save & Import to Catalog</span>
@@ -2204,17 +2210,17 @@ function ConnectWebsiteContent() {
         {/* MODE 3: AI PDF CATALOG & BROCHURE SCRAPER                                 */}
         {/* ========================================================================= */}
         {scrapeMode === "pdf" && (
-          <div className="w-full max-w-5xl flex flex-col gap-6 animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl flex flex-col gap-5 sm:gap-6 animate-in fade-in duration-200">
             
             {/* Document Upload Input Card */}
-            <div className="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-gray-100">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-4 sm:p-6 md:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-4 sm:mb-5 border-b border-gray-100">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="p-1.5 rounded-lg bg-purple-100 text-purple-700">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="p-1.5 rounded-lg bg-purple-100 text-purple-700 shrink-0">
                       <FileUp className="w-4 h-4" />
                     </span>
-                    <h2 className="text-base font-extrabold text-gray-900">
+                    <h2 className="text-sm sm:text-base font-extrabold text-gray-900">
                       AI PDF Document & Catalog Extractor
                     </h2>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-extrabold border border-purple-200 uppercase tracking-wide">
@@ -2228,7 +2234,7 @@ function ConnectWebsiteContent() {
               </div>
 
               {/* Mode Toggle: File vs URL */}
-              <div className="flex items-center gap-2 p-1 bg-gray-100/90 rounded-2xl border border-gray-200 max-w-xs mb-5 text-xs font-bold">
+              <div className="flex items-center gap-2 p-1 bg-gray-100/90 rounded-2xl border border-gray-200 w-full sm:max-w-xs mb-5 text-xs font-bold">
                 <button
                   type="button"
                   onClick={() => setPdfInputMode("file")}
@@ -2251,7 +2257,7 @@ function ConnectWebsiteContent() {
                 </button>
               </div>
 
-              <form onSubmit={handleRunPdfScraper} className="flex flex-col gap-5">
+              <form onSubmit={handleRunPdfScraper} className="flex flex-col gap-4 sm:gap-5">
                 
                 {/* File Dropzone */}
                 {pdfInputMode === "file" ? (
@@ -2259,7 +2265,7 @@ function ConnectWebsiteContent() {
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                       Select or Drop PDF File (Max 25MB)
                     </label>
-                    <div className="relative border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-3xl p-8 text-center transition-all bg-purple-50/20 hover:bg-purple-50/40 cursor-pointer group">
+                    <div className="relative border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-2xl sm:rounded-3xl p-5 sm:p-8 text-center transition-all bg-purple-50/20 hover:bg-purple-50/40 cursor-pointer group">
                       <input 
                         type="file"
                         accept=".pdf,application/pdf"
@@ -2270,25 +2276,25 @@ function ConnectWebsiteContent() {
                         }}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <div className="w-14 h-14 rounded-2xl bg-purple-100 group-hover:scale-105 text-purple-600 flex items-center justify-center shadow-xs transition-transform">
-                          <FileText className="w-7 h-7" />
+                      <div className="flex flex-col items-center justify-center gap-2.5 sm:gap-3">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-purple-100 group-hover:scale-105 text-purple-600 flex items-center justify-center shadow-xs transition-transform shrink-0">
+                          <FileText className="w-6 h-6 sm:w-7 sm:h-7" />
                         </div>
                         {pdfFile ? (
-                          <div className="flex flex-col items-center">
-                            <span className="text-sm font-extrabold text-gray-900 flex items-center gap-1.5">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {pdfFile.name}
+                          <div className="flex flex-col items-center px-2">
+                            <span className="text-xs sm:text-sm font-extrabold text-gray-900 flex items-center gap-1.5 break-all text-center">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> {pdfFile.name}
                             </span>
-                            <span className="text-xs text-gray-500 font-semibold mt-0.5">
+                            <span className="text-[11px] sm:text-xs text-gray-500 font-semibold mt-0.5">
                               {(pdfFile.size / (1024 * 1024)).toFixed(2)} MB • PDF Document Ready
                             </span>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center">
-                            <span className="text-sm font-extrabold text-gray-800">
+                          <div className="flex flex-col items-center px-2">
+                            <span className="text-xs sm:text-sm font-extrabold text-gray-800">
                               Click to choose PDF or drag & drop here
                             </span>
-                            <span className="text-xs text-gray-400 mt-1">
+                            <span className="text-[11px] sm:text-xs text-gray-400 mt-1">
                               Brochures, Product Lists, Property Decks, Specification Sheets (.pdf)
                             </span>
                           </div>
@@ -2308,14 +2314,14 @@ function ConnectWebsiteContent() {
                         value={pdfUrl}
                         onChange={(e) => setPdfUrl(e.target.value)}
                         placeholder="https://example.com/assets/brochure.pdf"
-                        className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-300 rounded-2xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-600 transition-all shadow-xs"
+                        className="w-full pl-11 pr-4 py-3 sm:py-3.5 bg-white border border-gray-300 rounded-2xl text-xs sm:text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-600 transition-all shadow-xs"
                       />
                     </div>
                   </div>
                 )}
 
                 {/* Mode Selector */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
                   {[
                     { id: "auto", label: "Auto Detect", desc: "General documents & catalogs" },
                     { id: "real_estate", label: "Real Estate & Properties", desc: "Flats, offices, carpet area, amenities" },
@@ -2339,14 +2345,14 @@ function ConnectWebsiteContent() {
                 </div>
 
                 {/* Submit Action */}
-                <div className="flex items-center justify-between pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                   <span className="text-[11px] text-gray-400 font-medium">
                     Powered by Gemini Multimodal Vision Document Processing
                   </span>
                   <Button
                     type="submit"
                     disabled={isScrapingPdf || (pdfInputMode === "file" && !pdfFile) || (pdfInputMode === "url" && !pdfUrl.trim())}
-                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-2xl px-6 py-3.5 h-auto shadow-md shadow-purple-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl sm:rounded-2xl px-5 sm:px-6 py-3 sm:py-3.5 h-auto shadow-md shadow-purple-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isScrapingPdf ? (
                       <>
@@ -2367,10 +2373,10 @@ function ConnectWebsiteContent() {
 
             {/* AI Real-time Logs Terminal */}
             {pdfLogs.length > 0 && (
-              <div className="bg-[#0f1118] border border-gray-800 rounded-3xl p-5 shadow-xl font-mono text-xs">
-                <div className="flex items-center justify-between pb-3 border-b border-gray-800 mb-3">
-                  <div className="flex items-center gap-2 text-gray-300 font-bold">
-                    <Terminal className="w-4 h-4 text-purple-400" />
+              <div className="bg-[#0f1118] border border-gray-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xl font-mono text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-3 border-b border-gray-800 mb-3">
+                  <div className="flex items-center gap-2 text-gray-300 font-bold text-xs">
+                    <Terminal className="w-4 h-4 text-purple-400 shrink-0" />
                     <span>Gemini AI Document Extraction Pipeline</span>
                   </div>
                   {isScrapingPdf && (
@@ -2379,7 +2385,7 @@ function ConnectWebsiteContent() {
                     </span>
                   )}
                 </div>
-                <div className="max-h-36 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-gray-800 text-gray-400">
+                <div className="max-h-36 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-gray-800 text-gray-400 text-[11px] sm:text-xs">
                   {pdfLogs.map((log, i) => (
                     <div key={i} className="leading-relaxed">
                       <span className="text-purple-400 mr-2">›</span>
@@ -2392,13 +2398,13 @@ function ConnectWebsiteContent() {
 
             {/* Success Message Banner */}
             {pdfSuccessMessage && (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between gap-3 animate-in fade-in">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 animate-in fade-in">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>{pdfSuccessMessage}</span>
                 </div>
-                <Link href="/dashboard/catalog">
-                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-8 px-3 cursor-pointer">
+                <Link href="/dashboard/catalog" className="w-full sm:w-auto">
+                  <Button size="sm" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-8 px-3 cursor-pointer justify-center">
                     View Catalog →
                   </Button>
                 </Link>
@@ -2407,18 +2413,18 @@ function ConnectWebsiteContent() {
 
             {/* Results Grid */}
             {pdfResult && (
-              <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+              <div className="flex flex-col gap-5 sm:gap-6 animate-in fade-in duration-300">
                 
                 {/* Company Card if found */}
                 {pdfResult.company && pdfResult.company.name && (
-                  <div className="bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-purple-200/80 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black text-lg shadow-sm">
+                  <div className="bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-purple-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 sm:gap-3.5">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black text-base sm:text-lg shadow-sm shrink-0">
                         {pdfResult.company.name.charAt(0)}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-base font-extrabold text-gray-900">{pdfResult.company.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm sm:text-base font-extrabold text-gray-900">{pdfResult.company.name}</h3>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-extrabold">
                             Extracted Entity
                           </span>
@@ -2432,7 +2438,7 @@ function ConnectWebsiteContent() {
                 )}
 
                 {/* Batch Action Bar */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                <div className="bg-white rounded-2xl border border-gray-200 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-xs">
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
                       <input 
@@ -2451,12 +2457,12 @@ function ConnectWebsiteContent() {
                     </label>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
                     <Button
                       type="button"
                       disabled={isBatchImportingPdf || pdfSelectedIndices.length === 0}
                       onClick={handleImportPdfItems}
-                      className="bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl px-5 h-10 shadow-sm shadow-purple-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="w-full sm:w-auto justify-center bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl px-5 h-10 shadow-sm shadow-purple-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isBatchImportingPdf ? (
                         <>
@@ -2474,7 +2480,7 @@ function ConnectWebsiteContent() {
                 </div>
 
                 {/* Items Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
                   {pdfResult.products && pdfResult.products.map((item: any, idx: number) => {
                     const isSelected = pdfSelectedIndices.includes(idx);
                     const isImported = pdfImportedIndices.includes(idx) || item.importedToDb;
@@ -2482,7 +2488,7 @@ function ConnectWebsiteContent() {
                     return (
                       <div 
                         key={idx}
-                        className={`bg-white rounded-3xl border p-5 flex flex-col justify-between gap-4 transition-all shadow-xs ${
+                        className={`bg-white rounded-2xl sm:rounded-3xl border p-4 sm:p-5 flex flex-col justify-between gap-3.5 sm:gap-4 transition-all shadow-xs ${
                           isSelected ? "border-purple-400 ring-2 ring-purple-100" : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
@@ -2547,13 +2553,13 @@ function ConnectWebsiteContent() {
                         </div>
 
                         {/* Price & Action */}
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100 gap-2">
                           <div>
-                            <span className="text-base font-black text-gray-900">
+                            <span className="text-sm sm:text-base font-black text-gray-900">
                               ₹{Number(item.price || 0).toLocaleString("en-IN")}
                             </span>
                             {item.originalPrice && item.originalPrice > item.price && (
-                              <span className="text-xs text-gray-400 line-through ml-2">
+                              <span className="text-xs text-gray-400 line-through ml-1.5 sm:ml-2">
                                 ₹{Number(item.originalPrice).toLocaleString("en-IN")}
                               </span>
                             )}
@@ -2586,7 +2592,7 @@ function ConnectWebsiteContent() {
                                 alert("Failed to import item");
                               }
                             }}
-                            className={`rounded-xl text-xs font-bold px-3.5 h-8 cursor-pointer ${
+                            className={`rounded-xl text-xs font-bold px-3 sm:px-3.5 h-8 cursor-pointer shrink-0 ${
                               isImported 
                                 ? "bg-gray-100 text-gray-400 border border-gray-200" 
                                 : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
