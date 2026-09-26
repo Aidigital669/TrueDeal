@@ -64,6 +64,8 @@ function ConnectWebsiteContent() {
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [portfolioSyncMessage, setPortfolioSyncMessage] = useState<string | null>(null);
   const [syncedPortfolioSlug, setSyncedPortfolioSlug] = useState<string | null>(null);
+  const [importedSections, setImportedSections] = useState<string[]>([]);
+  const [importingSection, setImportingSection] = useState<string | null>(null);
   // PDF Document Scraper State
   const [pdfInputMode, setPdfInputMode] = useState<"file" | "url">("file");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -94,9 +96,9 @@ function ConnectWebsiteContent() {
     setPdfSelectedIndices([]);
     setPdfImportedIndices([]);
     setPdfLogs([
-      `[${new Date().toLocaleTimeString()}] Starting TrueDeal Gemini AI PDF Extractor...`,
+      `[${new Date().toLocaleTimeString()}] Starting TrueDeal Universal AI PDF Extractor...`,
       `[${new Date().toLocaleTimeString()}] Document Mode: ${pdfMode}`,
-      `[${new Date().toLocaleTimeString()}] Streaming document to Gemini Multimodal Document Engine...`
+      `[${new Date().toLocaleTimeString()}] Analyzing layout, high-res images, pricing & catalog text...`
     ]);
 
     try {
@@ -777,6 +779,7 @@ function ConnectWebsiteContent() {
                     Import Another
                   </Button>
                 </div>
+              </div>
             )}
 
             {/* Scraped Product Preview & Card Customizer */}
@@ -2493,8 +2496,8 @@ function ConnectWebsiteContent() {
                         }`}
                       >
                         <div>
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-start justify-between gap-2 mb-2.5">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                               <input 
                                 type="checkbox"
                                 checked={isSelected}
@@ -2510,6 +2513,16 @@ function ConnectWebsiteContent() {
                               <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-extrabold border border-purple-200/60 uppercase">
                                 {item.category || "General"}
                               </span>
+                              {item.discount && (
+                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  {item.discount}
+                                </span>
+                              )}
+                              {item.pageNumber && (
+                                <span className="text-[9px] font-semibold text-gray-400">
+                                  Page {item.pageNumber}
+                                </span>
+                              )}
                             </div>
 
                             {isImported && (
@@ -2519,18 +2532,31 @@ function ConnectWebsiteContent() {
                             )}
                           </div>
 
-                          <h4 className="text-sm font-extrabold text-gray-900 leading-snug">
-                            {item.title}
-                          </h4>
-                          {item.brand && (
-                            <span className="text-[11px] font-bold text-gray-400 mt-0.5 block">
-                              {item.brand} {item.sku ? `• SKU: ${item.sku}` : ""}
-                            </span>
-                          )}
-
-                          <p className="text-xs text-gray-600 line-clamp-2 mt-2 leading-relaxed font-medium">
-                            {item.description}
-                          </p>
+                          <div className="flex gap-3.5 items-start">
+                            {item.primaryImage && (
+                              <img 
+                                src={item.primaryImage} 
+                                alt={item.title} 
+                                className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl object-cover border border-gray-200 shrink-0 bg-gray-50 shadow-xs"
+                                onError={(e: any) => {
+                                  e.target.src = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80";
+                                }}
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-extrabold text-gray-900 leading-snug">
+                                {item.title}
+                              </h4>
+                              {item.brand && (
+                                <span className="text-[11px] font-bold text-gray-400 mt-0.5 block">
+                                  {item.brand} {item.sku ? `• SKU: ${item.sku}` : ""}
+                                </span>
+                              )}
+                              <p className="text-xs text-gray-600 line-clamp-2 mt-1.5 leading-relaxed font-medium">
+                                {item.description}
+                              </p>
+                            </div>
+                          </div>
 
                           {/* Specs pills */}
                           {item.specs && item.specs.length > 0 && (

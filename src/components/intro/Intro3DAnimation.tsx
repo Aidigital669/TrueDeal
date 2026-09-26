@@ -31,7 +31,7 @@ export function Intro3DAnimation({ onComplete }: Intro3DAnimationProps) {
   // Progress sequence
   useEffect(() => {
     const startTime = Date.now();
-    const duration = 2800; // 2.8 seconds total intro
+    const duration = 2800; 
 
     const timer = setInterval(() => {
       const elapsed = Date.now() - startTime;

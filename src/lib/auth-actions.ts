@@ -323,7 +323,7 @@ export async function loginUserAction(formData: {
         { slug: "anvreeality" },
         {
           $setOnInsert: {
-            userId: user._id,
+            userId: res.insertedId,
             storeName: "ANV REEALTY",
             slug: "anvreeality",
             email: "contact@anvreealty.com",
