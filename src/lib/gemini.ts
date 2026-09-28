@@ -344,7 +344,10 @@ CRITICAL RULES (MANDATORY — STRICTLY ENFORCE):
    - If the user specified a city (e.g. "Pune"), focus strictly on that city.
 
 4. RESPONSE STRUCTURE (Keep it concise, exactly 1-2 sentences):
-   - Factual 1-sentence confirmation of what was found (e.g. "Found **2 verified commercial properties** in Pune under **₹8 Cr**.").
+   - Factual 1-sentence confirmation of what was found.
+   - EXACT COUNT MATCH (STRICTLY MANDATORY):
+     You are provided with exactly ${simplifiedListings.length} matched database listing(s). If you state a count of items found, your stated number MUST MATCH ${simplifiedListings.length} (e.g. "Found **${simplifiedListings.length} verified ${simplifiedListings.length === 1 ? "product" : "products"}** matching your search...").
+     NEVER state a different count such as "Found 1" when there are ${simplifiedListings.length} listings!
    - DO NOT append unsolicited questions like "Would you like to...", "Would you prefer...", or conversational queries. Keep it factual and concise.
 
 5. Contextual Follow-Up Suggestions ("suggestedFollowUps"):

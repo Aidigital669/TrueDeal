@@ -148,7 +148,17 @@ function cleanAiSummaryText(text: string, listings: any[]): string {
   cleaned = cleaned.replace(/^As\s+TrueDeal\s+AI,?\s+[^\n]*?:?\s*\n*/i, "");
   cleaned = cleaned.replace(/^Here\s+are\s+(?:some\s+)?verified\s+[^\n]*?:?\s*\n*/i, "");
 
-  // 2. If listings are present, remove redundant bullet points repeating listing names/specs/prices
+  // 2. Programmatically reconcile listing count with actual database listings count
+  if (listings && listings.length > 0) {
+    const actualCount = listings.length;
+    // Harmonize phrases like "Found 1 verified product..." to match the actual number of cards shown
+    cleaned = cleaned.replace(
+      /\b(Found|Showing)\s+[\*_]*(?:[1-9]\d*|one|two|three|four|five|six|seven|eight|nine|ten)[\*_]*\s+[\*_]*(?:verified\s+)?(product|property|item|listing)s?[\*_]*/gi,
+      `Found **${actualCount} verified $2${actualCount === 1 ? "" : "s"}**`
+    );
+  }
+
+  // 3. If listings are present, remove redundant bullet points repeating listing names/specs/prices
   if (listings && listings.length > 0) {
     const listingTitles = listings.map(l => (l.title || l.name || "").toLowerCase().trim()).filter(Boolean);
     const lines = cleaned.split("\n");
@@ -171,7 +181,7 @@ function cleanAiSummaryText(text: string, listings: any[]): string {
     cleaned = filteredLines.join("\n");
   }
 
-  // 3. Remove fluff marketing outro & unsolicited clarifying questions
+  // 4. Remove fluff marketing outro & unsolicited clarifying questions
   cleaned = cleaned.replace(/check\s+out\s+the\s+(?:product\s+|listing\s+)?details\s+below[^\n]*\.?/gi, "");
   cleaned = cleaned.replace(/reach\s+out\s+to\s+sellers\s+directly[^\n]*\.?/gi, "");
   cleaned = cleaned.replace(/tap\s+any\s+quick\s+question\s+below[^\n]*\.?/gi, "");
@@ -180,7 +190,7 @@ function cleanAiSummaryText(text: string, listings: any[]): string {
   cleaned = cleaned.replace(/💬\s*[^\n]*/gi, "");
   cleaned = cleaned.replace(/(?:would\s+you\s+(?:like|prefer)|do\s+you\s+(?:want|prefer)|feel\s+free\s+to)[^\n]*\?/gi, "");
 
-  // 4. Clean up excess newlines
+  // 5. Clean up excess newlines
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
 
   return cleaned;
