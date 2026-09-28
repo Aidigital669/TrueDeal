@@ -57,7 +57,7 @@ export default function AdminLayout({
     { name: "RFQ & Buyer Leads", href: "/admin/inquiries", icon: MessageSquare },
     { name: "Users & Roles", href: "/admin/users", icon: Users },
     { name: "Marketplace Categories", href: "/admin/categories", icon: Tags },
-    { name: "AI & Web Crawlers", href: "/admin/crawlers", icon: Bot, badge: "Gemini AI" },
+    { name: "AI & Web Crawlers", href: "/admin/crawlers", icon: Bot, badge: "TrueDeal AI" },
     { name: "MongoDB & Diagnostics", href: "/admin/database", icon: Database },
     { name: "Platform Settings", href: "/admin/settings", icon: Settings },
   ];
@@ -155,7 +155,7 @@ export default function AdminLayout({
 
               {!collapsed && item.badge && (
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                  item.badge === "Gemini AI" 
+                  item.badge === "TrueDeal AI" || item.badge === "Gemini AI" 
                     ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" 
                     : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
                 }`}>

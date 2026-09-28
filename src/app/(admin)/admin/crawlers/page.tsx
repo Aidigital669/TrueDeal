@@ -86,7 +86,7 @@ export default function AdminCrawlersPage() {
     setCrawlLogs([
       `[${new Date().toLocaleTimeString()}] Initializing headless crawler for ${crawlUrl}...`,
       `[${new Date().toLocaleTimeString()}] Target isolated partition: products_${selectedSellerSlug}`,
-      `[${new Date().toLocaleTimeString()}] Launching deep HTML extractor and Gemini AI parsing pipeline...`
+      `[${new Date().toLocaleTimeString()}] Launching deep HTML extractor and TrueDeal AI parsing pipeline...`
     ]);
 
     try {
@@ -143,7 +143,7 @@ export default function AdminCrawlersPage() {
     setPdfLogs([
       `[${new Date().toLocaleTimeString()}] Starting TrueDeal AI PDF Scraper...`,
       `[${new Date().toLocaleTimeString()}] Mode: ${pdfMode} | Tenant: products_${pdfSellerSlug}`,
-      `[${new Date().toLocaleTimeString()}] Uploading document stream to Gemini Multimodal Document Engine...`
+      `[${new Date().toLocaleTimeString()}] Uploading document stream to TrueDeal Multimodal Document Engine...`
     ]);
 
     try {
@@ -335,7 +335,7 @@ export default function AdminCrawlersPage() {
           <FileText className="w-4 h-4" />
           <span>PDF Catalog & Document Scraper</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/20 text-white font-mono uppercase tracking-wider font-extrabold">
-            Gemini Multimodal
+            TrueDeal Multimodal
           </span>
         </button>
 
@@ -362,7 +362,7 @@ export default function AdminCrawlersPage() {
           }`}
         >
           <Sparkles className="w-4 h-4 text-purple-300" />
-          <span>Gemini AI Search Discovery Engine</span>
+          <span>TrueDeal AI Search Discovery Engine</span>
         </button>
       </div>
 
@@ -562,7 +562,7 @@ export default function AdminCrawlersPage() {
                   {isPdfScraping ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Extracting PDF with Gemini Multimodal AI...
+                      Extracting PDF with TrueDeal Multimodal AI...
                     </>
                   ) : (
                     <>
@@ -622,7 +622,7 @@ export default function AdminCrawlersPage() {
                   <span className="text-xl font-black text-purple-300 mt-1">
                     {pdfResult?.stats?.processingTimeMs ? `${(pdfResult.stats.processingTimeMs / 1000).toFixed(1)}s` : "0.0s"}
                   </span>
-                  <span className="text-[10px] text-gray-500 mt-0.5">Gemini Vision AI</span>
+                  <span className="text-[10px] text-gray-500 mt-0.5">TrueDeal Vision AI</span>
                 </div>
 
                 <div className="bg-[#0f1118] border border-gray-800 rounded-2xl p-3.5 flex flex-col">
@@ -948,7 +948,7 @@ export default function AdminCrawlersPage() {
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white">Gemini AI Search Engine Console</h2>
+                <h2 className="text-sm font-bold text-white">TrueDeal AI Search Engine Console</h2>
                 <p className="text-[11px] text-gray-400">Natural language search reasoning and JSON query generator</p>
               </div>
             </div>
@@ -989,7 +989,7 @@ export default function AdminCrawlersPage() {
             >
               {isTestingAi ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" /> Testing Gemini Reasoning...
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" /> Testing TrueDeal AI Reasoning...
                 </>
               ) : (
                 <>
@@ -1002,7 +1002,7 @@ export default function AdminCrawlersPage() {
           {/* AI Response Output */}
           <div className="bg-[#090b10] border border-gray-800 rounded-2xl p-3.5 space-y-2 font-mono text-[11px]">
             <div className="flex items-center justify-between text-gray-500 pb-1 border-b border-gray-900">
-              <span>Gemini Model Output</span>
+              <span>AI Engine Output</span>
               <span className="text-purple-400 font-bold">{selectedModel}</span>
             </div>
             <div className="text-gray-300 max-h-56 overflow-y-auto whitespace-pre-wrap custom-scrollbar">

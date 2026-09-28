@@ -85,7 +85,7 @@ export function parseChannel(referrer: string = "", path: string = ""): string {
     return "WhatsApp & Seller Direct Link";
   }
   if (lower.includes("gemini") || lower.includes("chatgpt") || lower.includes("ai.")) {
-    return "Gemini AI Search & Discovery";
+    return "TrueDeal AI Search & Discovery";
   }
   if (lower.includes("facebook") || lower.includes("instagram") || lower.includes("linkedin") || lower.includes("twitter") || lower.includes("t.co")) {
     return "Social & Referrals";
@@ -435,6 +435,7 @@ export async function getRealVisitorAnalytics(timeRange: "today" | "7d" | "30d" 
     const channelColors: Record<string, string> = {
       "Direct Marketplace": "#6366f1",
       "Google Organic Search": "#3b82f6",
+      "TrueDeal AI Search & Discovery": "#a855f7",
       "Gemini AI Search & Discovery": "#a855f7",
       "WhatsApp & Seller Direct Link": "#10b981",
       "Social & Referrals": "#f59e0b"

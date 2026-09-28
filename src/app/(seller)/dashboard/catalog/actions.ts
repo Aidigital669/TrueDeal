@@ -229,7 +229,7 @@ export async function getProducts(options: {
       }
 
       const priceVal = typeof p.price === "number" ? p.price : (parseFloat(String(p.price).replace(/[^0-9.]/g, "")) || 0);
-      const formattedPrice = `₹${priceVal.toLocaleString("en-IN")}`;
+      const formattedPrice = priceVal > 0 ? `₹${priceVal.toLocaleString("en-IN")}` : "Price on Request";
       const stockText = `${inv} in stock`;
       const primaryImage = p.images?.find((img: any) => img.isPrimary)?.url || p.images?.[0]?.url || p.image || "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=200&q=80";
 

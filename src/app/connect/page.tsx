@@ -665,7 +665,7 @@ function ConnectWebsiteContent() {
                 <FileUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
                 <span className="whitespace-nowrap">Upload PDF Document</span>
                 <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 font-extrabold uppercase tracking-wide hidden sm:inline-block">
-                  Gemini AI
+                  Vision AI
                 </span>
               </button>
             </div>
@@ -2227,11 +2227,11 @@ function ConnectWebsiteContent() {
                       AI PDF Document & Catalog Extractor
                     </h2>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-extrabold border border-purple-200 uppercase tracking-wide">
-                      Gemini Multimodal
+                      TrueDeal Multimodal
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 font-medium">
-                    Upload any PDF catalog, property brochure, spec sheet or price list. Google Gemini AI will read and extract all items directly into your store catalog.
+                    Upload any PDF catalog, property brochure, spec sheet or price list. TrueDeal AI will read and extract all items directly into your store catalog.
                   </p>
                 </div>
               </div>
@@ -2350,7 +2350,7 @@ function ConnectWebsiteContent() {
                 {/* Submit Action */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                   <span className="text-[11px] text-gray-400 font-medium">
-                    Powered by Gemini Multimodal Vision Document Processing
+                    Powered by TrueDeal Vision Document Processing
                   </span>
                   <Button
                     type="submit"
@@ -2360,7 +2360,7 @@ function ConnectWebsiteContent() {
                     {isScrapingPdf ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Analyzing Document with Gemini AI...</span>
+                        <span>Analyzing Document with TrueDeal AI...</span>
                       </>
                     ) : (
                       <>
@@ -2380,7 +2380,7 @@ function ConnectWebsiteContent() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-3 border-b border-gray-800 mb-3">
                   <div className="flex items-center gap-2 text-gray-300 font-bold text-xs">
                     <Terminal className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span>Gemini AI Document Extraction Pipeline</span>
+                    <span>TrueDeal AI Document Extraction Pipeline</span>
                   </div>
                   {isScrapingPdf && (
                     <span className="flex items-center gap-1.5 text-purple-400 text-[11px] animate-pulse">

@@ -239,15 +239,15 @@ export default function AdminSettingsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="text-gray-400 font-semibold mb-1 block">Default Gemini AI Discovery Model</label>
+                <label className="text-gray-400 font-semibold mb-1 block">Default AI Discovery Engine Model</label>
                 <select
                   value={settings.geminiModel || "gemini-2.0-flash"}
                   onChange={(e) => setSettings({ ...settings, geminiModel: e.target.value })}
                   className="w-full px-3 py-2.5 rounded-xl bg-gray-900 border border-gray-800 text-white font-semibold focus:border-indigo-500 outline-none"
                 >
-                  <option value="gemini-2.0-flash">Google Gemini 2.0 Flash (Fastest & Recommended)</option>
-                  <option value="gemini-1.5-flash">Google Gemini 1.5 Flash</option>
-                  <option value="gemini-1.5-pro">Google Gemini 1.5 Pro (Deep Reasoning)</option>
+                  <option value="gemini-2.0-flash">TrueDeal AI Flash 2.0 (Fastest & Recommended)</option>
+                  <option value="gemini-1.5-flash">TrueDeal AI Flash 1.5</option>
+                  <option value="gemini-1.5-pro">TrueDeal AI Pro 1.5 (Deep Reasoning)</option>
                 </select>
               </div>
 

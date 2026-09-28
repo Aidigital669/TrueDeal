@@ -336,7 +336,7 @@ export default function AdminAnalyticsPage() {
                   <h2 className="text-sm font-bold text-white">Top Natural Language AI Searches</h2>
                 </div>
                 <span className="text-[10px] text-purple-400 font-bold bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                  Gemini Engine
+                  TrueDeal AI Engine
                 </span>
               </div>
 
