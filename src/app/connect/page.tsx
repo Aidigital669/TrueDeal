@@ -167,8 +167,8 @@ function ConnectWebsiteContent() {
         discount: item.discount,
         category: item.category || "General",
         inventory: item.inventory || 25,
-        images: item.primaryImage ? [item.primaryImage] : [],
-        primaryImage: item.primaryImage,
+        images: item.images && item.images.length > 0 ? item.images : (item.primaryImage ? [item.primaryImage] : []),
+        primaryImage: item.primaryImage || item.dataUrl || item.images?.[0],
         specs: item.specs || [],
         aiKeywords: item.aiKeywords || [item.title]
       }));
@@ -2533,17 +2533,26 @@ function ConnectWebsiteContent() {
                           </div>
 
                           <div className="flex gap-3.5 items-start">
-                            {item.primaryImage && (
-                              <img 
-                                src={item.primaryImage} 
-                                alt={item.title} 
-                                className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl object-cover border border-gray-200 shrink-0 bg-gray-50 shadow-xs"
-                                onError={(e: any) => {
-                                  e.target.src = (item.category?.toLowerCase().includes("home") || item.category?.toLowerCase().includes("living") || item.title?.toLowerCase().includes("stone") || item.title?.toLowerCase().includes("tile"))
-                                    ? "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&q=80"
-                                    : "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80";
-                                }}
-                              />
+                            {(item.dataUrl || item.primaryImage) && (
+                              <div className="relative group/thumb shrink-0">
+                                <img 
+                                  src={item.dataUrl || item.primaryImage} 
+                                  alt={item.title} 
+                                  className="w-18 h-18 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl object-cover border border-gray-200 shrink-0 bg-gray-50 shadow-xs"
+                                  onError={(e: any) => {
+                                    if (item.category?.toLowerCase().includes("stone") || item.title?.toLowerCase().includes("stone") || item.title?.toLowerCase().includes("tile")) {
+                                      e.target.src = "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&q=80";
+                                    } else {
+                                      e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80";
+                                    }
+                                  }}
+                                />
+                                {item.images && item.images.length > 1 && (
+                                  <span className="absolute bottom-1 right-1 bg-black/75 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-xs">
+                                    {item.images.length} photos
+                                  </span>
+                                )}
+                              </div>
                             )}
                             <div className="flex-1 min-w-0">
                               <h4 className="text-sm font-extrabold text-gray-900 leading-snug">
@@ -2583,13 +2592,23 @@ function ConnectWebsiteContent() {
                         {/* Price & Action */}
                         <div className="flex items-center justify-between pt-3 border-t border-gray-100 gap-2">
                           <div>
-                            <span className="text-sm sm:text-base font-black text-gray-900">
-                              ₹{Number(item.price || 0).toLocaleString("en-IN")}
-                            </span>
-                            {item.originalPrice && item.originalPrice > item.price && (
-                              <span className="text-xs text-gray-400 line-through ml-1.5 sm:ml-2">
-                                ₹{Number(item.originalPrice).toLocaleString("en-IN")}
-                              </span>
+                            {item.price > 0 ? (
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-sm sm:text-base font-black text-gray-900">
+                                  ₹{Number(item.price).toLocaleString("en-IN")}
+                                </span>
+                                {item.originalPrice && item.originalPrice > item.price && (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    ₹{Number(item.originalPrice).toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                                  Price on Request
+                                </span>
+                              </div>
                             )}
                           </div>
 
@@ -2610,8 +2629,8 @@ function ConnectWebsiteContent() {
                                   discount: item.discount,
                                   category: item.category || "General",
                                   inventory: item.inventory || 25,
-                                  images: item.primaryImage ? [item.primaryImage] : [],
-                                  primaryImage: item.primaryImage,
+                                  images: item.images && item.images.length > 0 ? item.images : (item.primaryImage ? [item.primaryImage] : []),
+                                  primaryImage: item.primaryImage || item.dataUrl,
                                   specs: item.specs || [],
                                   aiKeywords: item.aiKeywords || [item.title]
                                 }]);

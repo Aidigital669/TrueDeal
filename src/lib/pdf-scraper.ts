@@ -15,10 +15,10 @@ import { getCategoryFallbackImage } from "./image-extractor";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODELS = [
-  "gemini-3.8-flash",
-  "gemini-3.5-flash",
   "gemini-2.5-flash",
-  "gemini-flash-latest"
+  "gemini-flash-latest",
+  "gemini-2.5-pro",
+  "gemini-3.8-flash"
 ];
 
 export interface ScrapedPdfItem {
@@ -35,9 +35,13 @@ export interface ScrapedPdfItem {
   inStock?: boolean;
   inventory?: number;
   primaryImage?: string;
+  dataUrl?: string;
+  lifestyleImage?: string;
+  lifestyleDataUrl?: string;
   images?: string[];
   pageNumber?: number;
   imageLocation?: { box_2d?: [number, number, number, number] };
+  lifestyleImageLocation?: { box_2d?: [number, number, number, number] };
   imageDescription?: string;
   hasImageInPdf?: boolean;
   importedToDb?: boolean;
@@ -124,8 +128,9 @@ async function cropProductImageFromPage(
   box_2d: [number, number, number, number] | { ymin?: number; xmin?: number; ymax?: number; xmax?: number; top?: number; left?: number; bottom?: number; right?: number },
   filenamePrefix: string,
   pageNumber: number,
-  itemIndex: number
-): Promise<string> {
+  itemIndex: number,
+  tag = "crop"
+): Promise<{ url: string; dataUrl: string } | null> {
   try {
     let ymin: number, xmin: number, ymax: number, xmax: number;
     if (Array.isArray(box_2d)) {
@@ -136,11 +141,11 @@ async function cropProductImageFromPage(
       ymax = box_2d.ymax ?? box_2d.bottom ?? 0;
       xmax = box_2d.xmax ?? box_2d.right ?? 0;
     } else {
-      return "";
+      return null;
     }
 
     if (typeof ymin !== "number" || typeof xmin !== "number" || typeof ymax !== "number" || typeof xmax !== "number") {
-      return "";
+      return null;
     }
 
     // Auto-detect normalized 0..1 scale if model returns float coordinates
@@ -151,7 +156,7 @@ async function cropProductImageFromPage(
       xmax *= 1000;
     }
 
-    if (ymax <= ymin || xmax <= xmin) return "";
+    if (ymax <= ymin || xmax <= xmin) return null;
 
     const clampedYmin = Math.max(0, Math.min(1000, ymin));
     const clampedXmin = Math.max(0, Math.min(1000, xmin));
@@ -172,17 +177,21 @@ async function cropProductImageFromPage(
     w = Math.min(img.width - x, w + padX * 2);
     h = Math.min(img.height - y, h + padY * 2);
 
-    if (w < 30 || h < 30) return "";
+    if (w < 30 || h < 30) return null;
 
     const canvas = createCanvas(w, h);
     const ctx = canvas.getContext("2d");
     ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
 
     const croppedBuf = canvas.toBuffer("image/png");
-    return persistExtractedImage(croppedBuf, `${filenamePrefix}_crop_${itemIndex}`, pageNumber, 1);
+    const namePrefix = `${filenamePrefix}_${tag}_${itemIndex}`;
+    const url = persistExtractedImage(croppedBuf, namePrefix, pageNumber, 1);
+    const dataUrl = `data:image/png;base64,${croppedBuf.toString("base64")}`;
+
+    return { url, dataUrl };
   } catch (err: any) {
     console.warn("Failed cropping product image:", err.message);
-    return "";
+    return null;
   }
 }
 
@@ -712,8 +721,9 @@ CRITICAL EXTRACTION GUIDELINES:
 5. CRITICAL - REAL PRODUCT IMAGE LOCALIZATION ("Use images as images and content as content"):
    - For every product or item that has a photo, picture, floor plan, or illustration in the document, identify:
      "pageNumber": physical 1-based page number (1, 2, 3...) where this product appears.
-     "imageLocation": { "box_2d": [ymin, xmin, ymax, xmax] } (normalized coordinates 0 to 1000 marking the exact boundary box of the product image/photo on that page).
-     "imageDescription": clear, vivid visual description of what the product's image looks like in the PDF (e.g. "White ceramic coffee mug with green leaf logo", "Front view of 3-seater blue velvet sofa").
+     "imageLocation": { "box_2d": [ymin, xmin, ymax, xmax] } (normalized coordinates 0 to 1000 marking the exact boundary box of the close-up product, tile, or sample photo on that page).
+     "lifestyleImageLocation": { "box_2d": [ymin, xmin, ymax, xmax] } (normalized coordinates 0 to 1000 marking the installed room setting, architectural photo, or application environment photo for this product on that page, if present).
+     "imageDescription": clear, vivid visual description of what the product's image looks like in the PDF (e.g. "Beige organic cobblestone tile pieces", "Modern living room with stone feature wall").
      "hasImageInPdf": true if the product has a visual image/photo on the page, false if text only.
 6. Return ONLY valid JSON matching this schema:
 {
@@ -743,6 +753,7 @@ CRITICAL EXTRACTION GUIDELINES:
       "inventory": 25,
       "pageNumber": 1,
       "imageLocation": { "box_2d": [100, 100, 500, 500] },
+      "lifestyleImageLocation": { "box_2d": [100, 100, 500, 500] },
       "imageDescription": "string",
       "hasImageInPdf": true
     }
@@ -763,34 +774,37 @@ CRITICAL EXTRACTION GUIDELINES:
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout for vision analysis
 
-          // Always feed multimodal PDF inline whenever size permits (<= 18MB base64)
-          // Also supply the extracted text stream so Gemini has both OCR text and visual coordinates
-          let contentsPayload: any[];
-          if (base64Pdf && base64Pdf.length <= 18 * 1024 * 1024) {
-            contentsPayload = [
-              {
-                parts: [
-                  { text: systemPrompt + (cleanDocText ? `\n\nDocument filename: ${filename}\nTotal pages: ${totalPages}\nExtracted text stream from PDF:\n${cleanDocText.slice(0, 12000)}` : `\n\nDocument filename: ${filename}`) },
-                  {
-                    inlineData: {
-                      mimeType: "application/pdf",
-                      data: base64Pdf
-                    }
-                  }
-                ]
-              }
-            ];
-          } else {
-            // PDF exceeds 18MB, send text stream
-            contentsPayload = [
-              {
-                parts: [
-                  { text: systemPrompt },
-                  { text: `Document filename: ${filename}\nExtracted text content from ${totalPages} page(s):\n${cleanDocText}` }
-                ]
-              }
-            ];
+          // Build multimodal parts: send rendered page screenshots directly as visual image parts
+          // This avoids 503 errors from huge raw PDFs and gives 100% reliable OCR + coordinate mapping
+          const visualParts: any[] = [
+            { text: systemPrompt + (cleanDocText ? `\n\nDocument filename: ${filename}\nTotal pages: ${totalPages}\nExtracted text stream from PDF:\n${cleanDocText.slice(0, 10000)}` : `\n\nDocument filename: ${filename}\nTotal pages: ${totalPages}`) }
+          ];
+
+          // Add each rendered page screenshot (pages 1 to min(totalPages, 8))
+          const maxVisionPages = Math.min(totalPages, 8);
+          for (let pNum = 1; pNum <= maxVisionPages; pNum++) {
+            if (pageScreenshotsMap.has(pNum)) {
+              const pBuf = pageScreenshotsMap.get(pNum)!;
+              visualParts.push({
+                inlineData: {
+                  mimeType: "image/png",
+                  data: pBuf.toString("base64")
+                }
+              });
+            }
           }
+
+          // Fallback to inline PDF if no page screenshots were rendered
+          if (visualParts.length === 1 && base64Pdf && base64Pdf.length <= 15 * 1024 * 1024) {
+            visualParts.push({
+              inlineData: {
+                mimeType: "application/pdf",
+                data: base64Pdf
+              }
+            });
+          }
+
+          const contentsPayload = [{ parts: visualParts }];
 
           const response = await fetch(endpoint, {
             method: "POST",
@@ -882,22 +896,52 @@ CRITICAL EXTRACTION GUIDELINES:
 
         // Authentic Image Extraction & Resolution:
         let assignedImage = "";
+        let assignedDataUrl = "";
+        const productImages: string[] = [];
         const pageNum = Number(item.pageNumber) || Math.floor((index / Math.max(1, rawItems.length)) * totalPages) + 1;
         const box_2d = item.imageLocation?.box_2d || item.box_2d || (Array.isArray(item.imageLocation) ? item.imageLocation : null);
 
         // Priority 1: Crop the exact authentic product photo from high-res page render using Gemini's detected bounding box
         if (box_2d && pageScreenshotsMap.has(pageNum)) {
           const pageBuf = pageScreenshotsMap.get(pageNum)!;
-          assignedImage = await cropProductImageFromPage(
+          const cropRes = await cropProductImageFromPage(
             pageBuf,
             box_2d,
             filename,
             pageNum,
-            index + 1
+            index + 1,
+            "sample"
           );
-          if (assignedImage) {
-            allExtractedImages.push(assignedImage);
+          if (cropRes) {
+            assignedImage = cropRes.url;
+            assignedDataUrl = cropRes.dataUrl;
+            allExtractedImages.push(cropRes.url);
+            productImages.push(cropRes.url);
             log(`Cropped authentic product photo for "${title}" directly from page ${pageNum}!`);
+
+            // Also check for lifestyle / room setting photo:
+            // Either from Gemini's lifestyleImageLocation, or if box_2d is on the right half (xmin >= 400), crop the left-hand room photo!
+            const rawLifeBox = item.lifestyleImageLocation?.box_2d || item.lifestyleBox;
+            const targetLifestyleBox = rawLifeBox || (
+              box_2d[1] >= 400
+                ? [Math.max(0, box_2d[0] - 150), 20, Math.min(1000, box_2d[2] + 150), 570]
+                : null
+            );
+
+            if (targetLifestyleBox) {
+              const lifeRes = await cropProductImageFromPage(
+                pageBuf,
+                targetLifestyleBox,
+                filename,
+                pageNum,
+                index + 1,
+                "room"
+              );
+              if (lifeRes) {
+                productImages.push(lifeRes.url);
+                log(`Cropped lifestyle room setting photo for "${title}" from page ${pageNum}!`);
+              }
+            }
           }
         }
 
@@ -907,6 +951,7 @@ CRITICAL EXTRACTION GUIDELINES:
           if (pageImgs && pageImgs.length > 0) {
             const imgIndex = index % pageImgs.length;
             assignedImage = pageImgs[imgIndex];
+            productImages.push(assignedImage);
             log(`Matched authentic embedded photo for "${title}" from page ${pageNum}.`);
           }
         }
@@ -914,31 +959,38 @@ CRITICAL EXTRACTION GUIDELINES:
         // Priority 3: Sequential embedded image across all pages
         if (!assignedImage && allExtractedImages[index]) {
           assignedImage = allExtractedImages[index];
+          productImages.push(assignedImage);
         }
 
         // Priority 4: If single item on page or first item, crop primary visual zone from page screenshot
         if (!assignedImage && pageScreenshotsMap.has(pageNum)) {
           const pageBuf = pageScreenshotsMap.get(pageNum)!;
-          assignedImage = await cropProductImageFromPage(
+          const fullCrop = await cropProductImageFromPage(
             pageBuf,
             [40, 40, 650, 960],
             filename,
             pageNum,
-            index + 1
+            index + 1,
+            "page"
           );
-          if (assignedImage) {
-            allExtractedImages.push(assignedImage);
+          if (fullCrop) {
+            assignedImage = fullCrop.url;
+            assignedDataUrl = fullCrop.dataUrl;
+            allExtractedImages.push(fullCrop.url);
+            productImages.push(fullCrop.url);
           }
         }
 
         // Priority 5: Document-level visual capture
         if (!assignedImage && allExtractedImages[0]) {
           assignedImage = allExtractedImages[0];
+          productImages.push(assignedImage);
         }
 
         // Priority 6: Intelligent category fallback
         if (!assignedImage) {
           assignedImage = fallbackImg;
+          productImages.push(fallbackImg);
         }
 
         // Specs Normalization
@@ -976,7 +1028,8 @@ CRITICAL EXTRACTION GUIDELINES:
           inStock: item.inStock !== false,
           inventory: typeof item.inventory === "number" ? item.inventory : 25,
           primaryImage: assignedImage,
-          images: [assignedImage],
+          dataUrl: assignedDataUrl || undefined,
+          images: productImages.length > 0 ? productImages : [assignedImage],
           pageNumber: pageNum,
           imageLocation: item.imageLocation,
           imageDescription: item.imageDescription,

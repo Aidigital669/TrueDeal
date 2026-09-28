@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Mail, Lock, ArrowRight, Loader2, Store, 
-  ShoppingBag, Eye, EyeOff, Sparkles, CheckCircle2 
+  ShoppingBag, Eye, EyeOff, CheckCircle2 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loginUserAction } from "@/lib/auth-actions";
@@ -116,47 +116,7 @@ function LoginFormContent() {
             </button>
           </div>
 
-          {/* Seller Demo Quick Credentials */}
-          {accountType === "seller" && (
-            <div className="mb-5 p-3 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-indigo-600" /> One-Click Demo Logins
-                </span>
-                <span className="text-[10px] text-slate-400 font-semibold">pass: password123</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("contact@anvreealty.com");
-                    setPassword("password123");
-                    setErrorMessage("");
-                  }}
-                  className="p-2 bg-white hover:bg-indigo-50/80 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all cursor-pointer shadow-2xs group"
-                >
-                  <div className="text-[11px] font-extrabold text-slate-800 group-hover:text-indigo-600 flex items-center gap-1">
-                    🏢 ANV REEALTY
-                  </div>
-                  <div className="text-[10px] text-slate-400 truncate">contact@anvreealty.com</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("saishtechnofarms@gmail.com");
-                    setPassword("password123");
-                    setErrorMessage("");
-                  }}
-                  className="p-2 bg-white hover:bg-emerald-50/80 border border-slate-200 hover:border-emerald-300 rounded-xl text-left transition-all cursor-pointer shadow-2xs group"
-                >
-                  <div className="text-[11px] font-extrabold text-slate-800 group-hover:text-emerald-600 flex items-center gap-1">
-                    🌿 Ayurmor
-                  </div>
-                  <div className="text-[10px] text-slate-400 truncate">saishtechnofarms@gmail.com</div>
-                </button>
-              </div>
-            </div>
-          )}
+
 
           {/* Error Notice */}
           {errorMessage && (

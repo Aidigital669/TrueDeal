@@ -720,7 +720,7 @@ export default function AdminCrawlersPage() {
                       >
                         <div className="flex items-start gap-3.5 min-w-0 flex-1">
                           <img
-                            src={item.primaryImage || "/placeholder.jpg"}
+                            src={item.dataUrl || item.primaryImage || "/placeholder.jpg"}
                             alt={item.title}
                             className="w-12 h-12 rounded-xl object-cover border border-gray-800 shrink-0 bg-gray-900"
                             onError={(e: any) => {
