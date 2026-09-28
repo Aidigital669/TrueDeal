@@ -16,7 +16,16 @@ export interface PageViewPayload {
 export interface SearchLogPayload {
   query: string;
   visitorId?: string;
+  userId?: string;
+  sessionId?: string;
+  userEmail?: string;
+  userName?: string;
   resultsCount?: number;
+  matchedListings?: any[];
+  appliedFilters?: string[];
+  ip?: string;
+  userAgent?: string;
+  source?: string;
 }
 
 /**
@@ -137,19 +146,33 @@ export async function recordPageView(payload: PageViewPayload) {
 }
 
 /**
- * Record a real marketplace AI search query
+ * Record a real marketplace AI search query in MongoDB
  */
 export async function recordSearchQuery(payload: SearchLogPayload) {
   try {
-    if (!payload.query || payload.query.trim().length < 2) return;
+    if (!payload.query || payload.query.trim().length < 1) return;
     const db = await getDb();
 
-    await db.collection("search_logs").insertOne({
+    const searchEntry = {
       query: payload.query.trim(),
-      visitorId: payload.visitorId || "anonymous",
+      visitorId: payload.visitorId || payload.userId || "anonymous",
+      userId: payload.userId || null,
+      sessionId: payload.sessionId || null,
+      userEmail: payload.userEmail || null,
+      userName: payload.userName || null,
       resultsCount: payload.resultsCount ?? 0,
+      matchedListings: payload.matchedListings || [],
+      appliedFilters: payload.appliedFilters || [],
+      ip: payload.ip || "",
+      userAgent: payload.userAgent || "",
+      source: payload.source || "search",
       createdAt: new Date()
-    });
+    };
+
+    // 1. Primary analytics collection
+    await db.collection("search_logs").insertOne(searchEntry);
+    // 2. Dedicated search audit collection
+    await db.collection("searches").insertOne(searchEntry);
   } catch (err: any) {
     console.error("recordSearchQuery error:", err.message);
   }

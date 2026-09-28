@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShoppingBag, Trash2, MessageSquare, ArrowRight, CheckCircle2, Send, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ export function InquiryCartDrawer({
   onRemoveItem,
   onClearCart
 }: InquiryCartDrawerProps) {
+  const router = useRouter();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [inquiryNotes, setInquiryNotes] = useState("");
@@ -124,7 +126,14 @@ export function InquiryCartDrawer({
                           className="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50 hover:border-gray-200 transition-all flex gap-3"
                         >
                           {/* Image */}
-                          <div className="w-16 h-16 rounded-xl bg-white border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                          <div 
+                            onClick={() => {
+                              onClose();
+                              router.push(`/product/${encodeURIComponent(it.product.id)}?seller=${encodeURIComponent(it.product.sellerSlug || "")}`);
+                            }}
+                            className="w-16 h-16 rounded-xl bg-white border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center cursor-pointer hover:opacity-90"
+                            title="View product details"
+                          >
                             <img
                               src={it.product.image}
                               alt={it.product.title}
@@ -135,7 +144,14 @@ export function InquiryCartDrawer({
                           {/* Content */}
                           <div className="flex-1 min-w-0 flex flex-col justify-between">
                             <div className="flex items-start justify-between gap-1">
-                              <h4 className="font-bold text-xs text-gray-900 line-clamp-1" title={it.product.title}>
+                              <h4 
+                                onClick={() => {
+                                  onClose();
+                                  router.push(`/product/${encodeURIComponent(it.product.id)}?seller=${encodeURIComponent(it.product.sellerSlug || "")}`);
+                                }}
+                                className="font-bold text-xs text-gray-900 line-clamp-1 cursor-pointer hover:text-indigo-600 transition-colors" 
+                                title={it.product.title}
+                              >
                                 {it.product.title}
                               </h4>
                               <button

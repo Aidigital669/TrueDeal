@@ -10,7 +10,7 @@ import { getCurrentUserSession } from "@/lib/auth-actions";
 export async function GET(req: Request) {
   try {
     const user = await getCurrentUserSession();
-    // History is visible once user logs in
+    // History in sidebar is only accessible to logged-in user accounts
     if (!user || !user.userId) {
       return NextResponse.json({
         success: true,

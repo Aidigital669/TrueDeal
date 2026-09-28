@@ -2,12 +2,12 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { 
   Building2, MapPin, Clock, Phone, MessageSquare, Globe, Sparkles, 
   CheckCircle2, ShieldCheck, Award, Star, Package, ArrowRight, ArrowLeft,
   ExternalLink, Mail, Share2, Send, Check, ChevronRight, Search,
-  ShoppingBag, HelpCircle, CheckCircle
+  ShoppingBag, HelpCircle, CheckCircle, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getPublicPortfolio, submitPortfolioInquiry, PortfolioData } from "@/lib/portfolio-actions";
@@ -16,6 +16,7 @@ import { getCurrentUserSession, UserSession } from "@/lib/auth-actions";
 export default function PublicPortfolioPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
   const slug = resolvedParams.slug || "";
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [loading, setLoading] = useState(true);
@@ -541,95 +542,118 @@ export default function PublicPortfolioPage({ params }: { params: Promise<{ slug
                 {/* Product Grid or Empty State */}
                 {filteredProducts.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    {filteredProducts.map((p) => (
-                      <div 
-                        key={p.id}
-                        className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-[#0A66C2] hover:shadow-md transition-all flex flex-col justify-between"
-                      >
-                        <div>
-                          {/* Image */}
-                          <div className="relative aspect-[16/10] bg-gray-50 overflow-hidden">
-                            {p.image ? (
-                              <img 
-                                src={p.image} 
-                                alt={p.title} 
-                                className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-                                <Package className="w-8 h-8" />
-                              </div>
-                            )}
-                            {p.category && (
-                              <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-md text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md">
-                                {p.category}
+                    {filteredProducts.map((p) => {
+                      const productDetailUrl = `/product/${encodeURIComponent(p.id)}?seller=${encodeURIComponent(slug)}`;
+
+                      return (
+                        <div 
+                          key={p.id}
+                          onClick={() => router.push(productDetailUrl)}
+                          className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-[#0A66C2] hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between cursor-pointer"
+                          title={`Click to view full details of ${p.title}`}
+                        >
+                          <div>
+                            {/* Image */}
+                            <div className="relative aspect-[16/10] bg-gray-50 overflow-hidden">
+                              {p.image ? (
+                                <img 
+                                  src={p.image} 
+                                  alt={p.title} 
+                                  className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                                  <Package className="w-8 h-8" />
+                                </div>
+                              )}
+                              {p.category && (
+                                <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-md text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md">
+                                  {p.category}
+                                </span>
+                              )}
+                              <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5" /> {p.aiVisibility || 97}% Match
                               </span>
-                            )}
-                            <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <Sparkles className="w-2.5 h-2.5" /> {p.aiVisibility || 97}% Match
-                            </span>
+                            </div>
+
+                            {/* Details */}
+                            <div className="p-4">
+                              <h3 className="font-bold text-sm text-gray-900 group-hover:text-[#0A66C2] transition-colors line-clamp-2 mb-1.5" title={p.title}>
+                                {p.title}
+                              </h3>
+                              {p.description ? (
+                                <p className="text-xs text-gray-500 line-clamp-2 mb-3">
+                                  {p.description}
+                                </p>
+                              ) : null}
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-black text-gray-900">
+                                  ₹{Number(p.price || 0).toLocaleString("en-IN")}
+                                </span>
+                                {p.originalPrice && p.originalPrice > p.price && (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    ₹{Number(p.originalPrice).toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Details */}
-                          <div className="p-4">
-                            <h3 className="font-bold text-sm text-gray-900 group-hover:text-[#0A66C2] transition-colors line-clamp-2 mb-1.5" title={p.title}>
-                              {p.title}
-                            </h3>
-                            {p.description ? (
-                              <p className="text-xs text-gray-500 line-clamp-2 mb-3">
-                                {p.description}
-                              </p>
-                            ) : null}
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-lg font-black text-gray-900">
-                                ₹{Number(p.price || 0).toLocaleString("en-IN")}
-                              </span>
-                              {p.originalPrice && p.originalPrice > p.price && (
-                                <span className="text-xs text-gray-400 line-through">
-                                  ₹{Number(p.originalPrice).toLocaleString("en-IN")}
-                                </span>
+                          {/* Card Action: View Details, Buy on Website & WhatsApp Inquiry */}
+                          <div className="p-4 pt-0 flex flex-col gap-2">
+                            <Button 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(productDetailUrl);
+                              }}
+                              className="w-full bg-[#0A66C2] hover:bg-[#004182] text-white font-extrabold text-xs rounded-xl h-10 shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View Details & Buy
+                            </Button>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              {(p.sourceUrl || portfolio.website) ? (
+                                <a 
+                                  href={p.sourceUrl || portfolio.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-full block"
+                                >
+                                  <Button 
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold text-[11px] rounded-xl h-9 border-gray-200 transition-all flex items-center justify-center gap-1 cursor-pointer truncate"
+                                  >
+                                    <ExternalLink className="w-3 h-3 text-gray-400 shrink-0" />
+                                    <span className="truncate">Website</span>
+                                  </Button>
+                                </a>
+                              ) : <div />}
+
+                              {cleanWhatsAppNumber && (
+                                <a 
+                                  href={`https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(`Hi ${portfolio.companyName}, I am interested in ordering: "${p.title}" on TrueDeal.`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-full block"
+                                >
+                                  <Button 
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200 font-bold text-[11px] rounded-xl h-9 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                                  >
+                                    <MessageSquare className="w-3 h-3 text-emerald-600 shrink-0" /> WhatsApp
+                                  </Button>
+                                </a>
                               )}
                             </div>
                           </div>
                         </div>
-
-                        {/* Card Action: Buy on Website & WhatsApp Inquiry */}
-                        <div className="p-4 pt-0 flex flex-col gap-2">
-                          {(p.sourceUrl || portfolio.website) && (
-                            <a 
-                              href={p.sourceUrl || portfolio.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full block"
-                            >
-                              <Button 
-                                size="sm"
-                                className="w-full bg-[#0A66C2] hover:bg-[#004182] text-white font-extrabold text-xs rounded-xl h-10 shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" /> Buy on Website
-                              </Button>
-                            </a>
-                          )}
-
-                          {cleanWhatsAppNumber && (
-                            <a 
-                              href={`https://wa.me/${cleanWhatsAppNumber}?text=${encodeURIComponent(`Hi ${portfolio.companyName}, I am interested in ordering: "${p.title}" on TrueDeal.`)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full block"
-                            >
-                              <Button 
-                                size="sm"
-                                variant="outline"
-                                className="w-full bg-gray-50 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 text-gray-700 font-bold text-xs rounded-xl h-9 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> Inquire via WhatsApp
-                              </Button>
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl">

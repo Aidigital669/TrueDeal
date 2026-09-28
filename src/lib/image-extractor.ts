@@ -612,6 +612,14 @@ export function getCategoryFallbackImage(category: string, title: string): strin
     return "https://images.unsplash.com/photo-1445205170230-053b83016050?w=1400&q=85";
   }
 
+  if (text.includes("tile") || text.includes("stone") || text.includes("marble") || text.includes("granite") || text.includes("floor") || text.includes("paving") || text.includes("paver") || text.includes("wall") || text.includes("cladding") || text.includes("slate") || text.includes("ceramic") || text.includes("porcelain")) {
+    return "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1400&q=85";
+  }
+
+  if (text.includes("home") || text.includes("living") || text.includes("chair") || text.includes("table") || text.includes("sofa") || text.includes("furniture") || text.includes("decor") || text.includes("kitchen") || text.includes("lighting")) {
+    return "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1400&q=85";
+  }
+
   if (text.includes("laptop") || text.includes("computer") || text.includes("phone") || text.includes("gadget") || text.includes("electronics") || text.includes("headphone") || text.includes("audio")) {
     return "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1400&q=85";
   }

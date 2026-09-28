@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scrapePdfCatalog } from "@/lib/pdf-scraper";
 
-export const maxDuration = 60; // 60s max execution for deep multimodal PDF analysis
+export const maxDuration = 120; // 120s max execution for deep multimodal PDF analysis
 
 export async function POST(req: NextRequest) {
   try {

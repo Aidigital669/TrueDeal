@@ -2539,7 +2539,9 @@ function ConnectWebsiteContent() {
                                 alt={item.title} 
                                 className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl object-cover border border-gray-200 shrink-0 bg-gray-50 shadow-xs"
                                 onError={(e: any) => {
-                                  e.target.src = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80";
+                                  e.target.src = (item.category?.toLowerCase().includes("home") || item.category?.toLowerCase().includes("living") || item.title?.toLowerCase().includes("stone") || item.title?.toLowerCase().includes("tile"))
+                                    ? "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&q=80"
+                                    : "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80";
                                 }}
                               />
                             )}

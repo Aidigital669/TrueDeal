@@ -228,9 +228,27 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
 
-  // Guest search limit state: 1 free search allowed for anonymous guests
+  // Visitor search limit state: strictly starts at 0, prompts ONLY after 3 completed searches (never on starting)
+  const [sessionSearchCount, setSessionSearchCount] = useState<number>(0);
   const [showLoginRequiredModal, setShowLoginRequiredModal] = useState(false);
-  const [guestSearchCount, setGuestSearchCount] = useState<number>(0);
+  const [canSearchAfterCross, setCanSearchAfterCross] = useState<boolean>(false);
+
+  // When user clicks cross (X), allow them to perform their next search
+  const handleDismissLoginModal = () => {
+    setShowLoginRequiredModal(false);
+    setCanSearchAfterCross(true);
+  };
+
+  // Allow closing the login modal with the Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showLoginRequiredModal) {
+        handleDismissLoginModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showLoginRequiredModal]);
 
   // User logout state
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -247,12 +265,11 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
     }
   };
 
+  // Clear any legacy persistent guest counters so every fresh visit starts with 3 free searches
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("truedeal_guest_search_count");
-      if (stored) {
-        setGuestSearchCount(parseInt(stored, 10) || 0);
-      }
+      localStorage.removeItem("truedeal_guest_search_count");
+      localStorage.removeItem("truedeal_guest_dismissed_login");
     } catch {}
   }, []);
 
@@ -261,8 +278,14 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Load chat sessions from MongoDB on mount
+  // Load chat sessions from MongoDB on mount (only for authenticated accounts)
   const fetchSessions = async () => {
+    if (!currentUser) {
+      setSessions([]);
+      setLoadingSessions(false);
+      return;
+    }
+
     try {
       setLoadingSessions(true);
       const res = await fetch("/api/chat/sessions");
@@ -281,7 +304,7 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+  }, [currentUser]);
 
   // Load messages whenever activeSessionId changes
   useEffect(() => {
@@ -378,11 +401,22 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
   // Send message
   const handleSendMessage = async (customText?: string) => {
     const textToSend = (customText || inputQuery).trim();
-    // If user is not logged in and has already received 1 search with answer, require login for next search!
-    const assistantMessagesCount = messages.filter(m => m.role === "assistant").length;
-    if (!currentUser && assistantMessagesCount >= 1) {
-      setShowLoginRequiredModal(true);
-      return;
+    if (!textToSend || isGenerating) return;
+
+    // For unauthenticated users:
+    // Only prompt after 3 searches have completed (NEVER on starting / 1st or 2nd search)
+    if (!currentUser) {
+      const assistantMessagesCount = messages.filter(m => m.role === "assistant").length;
+      const totalSearches = Math.max(sessionSearchCount, assistantMessagesCount);
+      if (totalSearches >= 3 && !canSearchAfterCross) {
+        setShowLoginRequiredModal(true);
+        return;
+      }
+
+      // Consume the cross pass so next search requires crossing or signin
+      if (canSearchAfterCross) {
+        setCanSearchAfterCross(false);
+      }
     }
 
     setInputQuery("");
@@ -430,13 +464,18 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
           // Refresh sessions list
           fetchSessions();
 
-          // Guest 1-time search limit tracking:
+          // Search limit tracking for unauthenticated users:
           if (!currentUser) {
-            const nextCount = guestSearchCount + 1;
-            setGuestSearchCount(nextCount);
-            try {
-              localStorage.setItem("truedeal_guest_search_count", nextCount.toString());
-            } catch {}
+            const nextCount = sessionSearchCount + 1;
+            setSessionSearchCount(nextCount);
+
+            // ONLY after 3 searches have completed, trigger the signin popup!
+            if (nextCount >= 3) {
+              setTimeout(() => {
+                setShowLoginRequiredModal(true);
+                setCanSearchAfterCross(false);
+              }, 1200);
+            }
           }
         } else {
           setMessages(prev => [
@@ -481,6 +520,9 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
     setActiveSessionId(null);
     setMessages([]);
     setInputQuery("");
+    setSessionSearchCount(0);
+    setCanSearchAfterCross(false);
+    setShowLoginRequiredModal(false);
     if (window.history && window.history.pushState) {
       window.history.pushState({}, "", "/");
     }
@@ -726,125 +768,131 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
           </button>
         </div>
 
-        {/* Search Past Chats */}
-        <div className="px-3 pb-2">
-          <div className="relative flex items-center">
-            <Search className="w-3.5 h-3.5 absolute left-3 opacity-50 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search chat history..."
-              value={historySearch}
-              onChange={e => setHistorySearch(e.target.value)}
-              className={`w-full text-xs pl-8 pr-7 py-1.5 rounded-lg border focus:outline-hidden ${t.sidebarSearch}`}
-            />
-            {historySearch && (
-              <button
-                type="button"
-                onClick={() => setHistorySearch("")}
-                className="absolute right-2 opacity-50 hover:opacity-100 text-xs"
-              >
-                <X className="w-3 h-3" />
-              </button>
+        {/* Search Past Chats (Only visible to authenticated accounts) */}
+        {currentUser && (
+          <div className="px-3 pb-2">
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 absolute left-3 opacity-50 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search chat history..."
+                value={historySearch}
+                onChange={e => setHistorySearch(e.target.value)}
+                className={`w-full text-xs pl-8 pr-7 py-1.5 rounded-lg border focus:outline-hidden ${t.sidebarSearch}`}
+              />
+              {historySearch && (
+                <button
+                  type="button"
+                  onClick={() => setHistorySearch("")}
+                  className="absolute right-2 opacity-50 hover:opacity-100 text-xs"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Chat History List: Hidden before login (data is kept in database for superadmin/developer, user only sees their own history after login) */}
+        {!currentUser ? (
+          <div className="flex-1" />
+        ) : (
+          <div className="flex-1 overflow-y-auto px-2 space-y-4 py-2 custom-scrollbar text-xs">
+            {loadingSessions ? (
+              <div className="flex items-center justify-center py-8 opacity-60 gap-2 text-xs">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                <span>Loading past searches...</span>
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="text-center py-8 px-4 opacity-60 text-xs">
+                <MessageSquare className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                <p>No chat history yet.</p>
+                <p className="text-[11px] opacity-70 mt-1">
+                  Your searches and conversations will automatically be saved here in the database.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Pinned Section */}
+                {grouped.pinned.length > 0 && (
+                  <div>
+                    <div className="px-2 py-1 text-[11px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Pin className="w-3 h-3" />
+                      <span>Pinned</span>
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {grouped.pinned.map(session => renderSessionItem(session))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Today Section */}
+                {grouped.today.length > 0 && (
+                  <div>
+                    <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
+                      Today
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {grouped.today.map(session => renderSessionItem(session))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Yesterday Section */}
+                {grouped.yesterday.length > 0 && (
+                  <div>
+                    <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
+                      Yesterday
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {grouped.yesterday.map(session => renderSessionItem(session))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Previous 7 Days */}
+                {grouped.prev7Days.length > 0 && (
+                  <div>
+                    <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
+                      Previous 7 Days
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {grouped.prev7Days.map(session => renderSessionItem(session))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Previous 30 Days */}
+                {grouped.prev30Days.length > 0 && (
+                  <div>
+                    <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
+                      Previous 30 Days
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {grouped.prev30Days.map(session => renderSessionItem(session))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Older */}
+                {grouped.older.length > 0 && (
+                  <div>
+                    <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
+                      Older
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {grouped.older.map(session => renderSessionItem(session))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
-        </div>
-
-        {/* Chat History List */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-4 py-2 custom-scrollbar text-xs">
-          {loadingSessions ? (
-            <div className="flex items-center justify-center py-8 opacity-60 gap-2 text-xs">
-              <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
-              <span>Loading past searches...</span>
-            </div>
-          ) : sessions.length === 0 ? (
-            <div className="text-center py-8 px-4 opacity-60 text-xs">
-              <MessageSquare className="w-6 h-6 mx-auto mb-2 opacity-40" />
-              <p>No chat history yet.</p>
-              <p className="text-[11px] opacity-70 mt-1">
-                Your searches and conversations will automatically be saved here in the database.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Pinned Section */}
-              {grouped.pinned.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[11px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <Pin className="w-3 h-3" />
-                    <span>Pinned</span>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {grouped.pinned.map(session => renderSessionItem(session))}
-                  </div>
-                </div>
-              )}
-
-              {/* Today Section */}
-              {grouped.today.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
-                    Today
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {grouped.today.map(session => renderSessionItem(session))}
-                  </div>
-                </div>
-              )}
-
-              {/* Yesterday Section */}
-              {grouped.yesterday.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
-                    Yesterday
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {grouped.yesterday.map(session => renderSessionItem(session))}
-                  </div>
-                </div>
-              )}
-
-              {/* Previous 7 Days */}
-              {grouped.prev7Days.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
-                    Previous 7 Days
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {grouped.prev7Days.map(session => renderSessionItem(session))}
-                  </div>
-                </div>
-              )}
-
-              {/* Previous 30 Days */}
-              {grouped.prev30Days.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
-                    Previous 30 Days
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {grouped.prev30Days.map(session => renderSessionItem(session))}
-                  </div>
-                </div>
-              )}
-
-              {/* Older */}
-              {grouped.older.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[11px] font-semibold opacity-60">
-                    Older
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {grouped.older.map(session => renderSessionItem(session))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        )}
 
         {/* Sidebar Footer: Profile & Clear History */}
         <div className={`p-3 border-t space-y-2 ${t.sidebarFooter}`}>
-          {sessions.length > 0 && (
+          {currentUser && sessions.length > 0 && (
             <button
               type="button"
               onClick={handleClearAllHistory}
@@ -859,14 +907,14 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
           <div className={`flex items-center justify-between p-2 rounded-xl border ${t.sidebarUserTile}`}>
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "G"}
+                {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : <User className="w-3.5 h-3.5" />}
               </div>
               <div className="flex flex-col truncate">
                 <span className="font-semibold text-xs truncate">
-                  {currentUser?.name || "Guest Explorer"}
+                  {currentUser?.name || "TrueDeal User"}
                 </span>
                 <span className="text-[10px] opacity-60 truncate">
-                  {currentUser?.email || "Session saved in DB"}
+                  {currentUser?.email || "Searches saved in DB"}
                 </span>
               </div>
             </div>
@@ -1191,81 +1239,90 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                               </div>
 
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                                {msg.metadata.listings.map((item: any, lIdx: number) => (
-                                  <div
-                                    key={lIdx}
-                                    className={`flex flex-col rounded-2xl p-3 sm:p-3.5 border transition-all shadow-xs group ${t.assistantListingCard}`}
-                                  >
-                                    <div className="flex items-start gap-2.5 sm:gap-3">
-                                      {item.image && (
-                                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-black/5 shrink-0 relative">
-                                          <img
-                                            src={item.image}
-                                            alt={item.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            onError={e => {
-                                              (e.target as HTMLElement).style.display = "none";
-                                            }}
-                                          />
-                                        </div>
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20">
-                                            {item.category || "Verified"}
-                                          </span>
-                                          {item.badge && (
-                                            <span className="text-[9px] font-bold text-emerald-500 truncate">
-                                              {item.badge}
+                                {msg.metadata.listings.map((item: any, lIdx: number) => {
+                                  const productDetailUrl = `/product/${encodeURIComponent(item.id)}?seller=${encodeURIComponent(item.sellerSlug || "")}`;
+
+                                  return (
+                                    <div
+                                      key={lIdx}
+                                      onClick={() => router.push(productDetailUrl)}
+                                      className={`flex flex-col rounded-2xl p-3 sm:p-3.5 border transition-all shadow-xs group cursor-pointer hover:shadow-lg hover:border-indigo-500/60 hover:-translate-y-0.5 active:scale-[0.99] ${t.assistantListingCard}`}
+                                      title={`View full details of ${item.title}`}
+                                    >
+                                      <div className="flex items-start gap-2.5 sm:gap-3">
+                                        {item.image && (
+                                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-black/5 shrink-0 relative">
+                                            <img
+                                              src={item.image}
+                                              alt={item.title}
+                                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                              onError={e => {
+                                                (e.target as HTMLElement).style.display = "none";
+                                              }}
+                                            />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1.5 mb-1">
+                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20">
+                                              {item.category || "Verified"}
+                                            </span>
+                                            {item.badge && (
+                                              <span className="text-[9px] font-bold text-emerald-500 truncate">
+                                                {item.badge}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <h4 className={`text-xs font-bold leading-snug line-clamp-2 transition-colors ${t.assistantListingTitle}`}>
+                                            {item.title}
+                                          </h4>
+                                          <div className={`text-sm font-black mt-1 ${t.assistantListingPrice}`}>
+                                            {item.price}
+                                          </div>
+                                          {item.location && (
+                                            <span className="text-[10px] opacity-70 flex items-center gap-1 mt-0.5 truncate">
+                                              📍 {item.location}
                                             </span>
                                           )}
                                         </div>
-                                        <h4 className={`text-xs font-bold leading-snug line-clamp-2 transition-colors ${t.assistantListingTitle}`}>
-                                          {item.title}
-                                        </h4>
-                                        <div className={`text-sm font-black mt-1 ${t.assistantListingPrice}`}>
-                                          {item.price}
-                                        </div>
-                                        {item.location && (
-                                          <span className="text-[10px] opacity-70 flex items-center gap-1 mt-0.5 truncate">
-                                            📍 {item.location}
-                                          </span>
-                                        )}
+                                      </div>
+
+                                      {/* Action Buttons: WhatsApp & Detail Link */}
+                                      <div className={`mt-3 pt-2.5 border-t flex items-center gap-2 ${t.assistantListingAction}`}>
+                                        {item.whatsappUrl ? (
+                                          <a
+                                            href={item.whatsappUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 sm:py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors shadow-xs"
+                                          >
+                                            <MessageCircle className="w-3.5 h-3.5" />
+                                            <span>WhatsApp Direct</span>
+                                          </a>
+                                        ) : item.phone ? (
+                                          <a
+                                            href={`tel:${item.phone}`}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 sm:py-1.5 px-2.5 rounded-xl bg-black/10 hover:bg-black/15 font-bold text-[11px] transition-colors"
+                                          >
+                                            <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                                            <span>Call Seller</span>
+                                          </a>
+                                        ) : null}
+
+                                        <Link
+                                          href={productDetailUrl}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className={`flex items-center justify-center gap-1 py-2 sm:py-1.5 px-3 rounded-xl font-bold text-[11px] transition-colors ${t.assistantViewBtn}`}
+                                        >
+                                          <span>View Details</span>
+                                          <ChevronRight className="w-3 h-3" />
+                                        </Link>
                                       </div>
                                     </div>
-
-                                    {/* Action Buttons: WhatsApp & Store */}
-                                    <div className={`mt-3 pt-2.5 border-t flex items-center gap-2 ${t.assistantListingAction}`}>
-                                      {item.whatsappUrl ? (
-                                        <a
-                                          href={item.whatsappUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="flex-1 flex items-center justify-center gap-1.5 py-2 sm:py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors shadow-xs"
-                                        >
-                                          <MessageCircle className="w-3.5 h-3.5" />
-                                          <span>WhatsApp Direct</span>
-                                        </a>
-                                      ) : item.phone ? (
-                                        <a
-                                          href={`tel:${item.phone}`}
-                                          className="flex-1 flex items-center justify-center gap-1.5 py-2 sm:py-1.5 px-2.5 rounded-xl bg-black/10 hover:bg-black/15 font-bold text-[11px] transition-colors"
-                                        >
-                                          <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                                          <span>Call Seller</span>
-                                        </a>
-                                      ) : null}
-
-                                      <Link
-                                        href={item.link || `/portfolio/${item.sellerSlug || "seller"}`}
-                                        className={`flex items-center justify-center gap-1 py-2 sm:py-1.5 px-3 rounded-xl font-bold text-[11px] transition-colors ${t.assistantViewBtn}`}
-                                      >
-                                        <span>View</span>
-                                        <ChevronRight className="w-3 h-3" />
-                                      </Link>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -1454,7 +1511,7 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
       </main>
 
       {/* ========================================================= */}
-      {/* 4. LOGIN REQUIRED POPUP MODAL (AFTER 1 FREE SEARCH) */}
+      {/* 4. LOGIN REQUIRED POPUP MODAL (AFTER 3 FREE SEARCHES) */}
       {/* ========================================================= */}
       <AnimatePresence>
         {showLoginRequiredModal && (
@@ -1465,7 +1522,7 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0"
-              onClick={() => setShowLoginRequiredModal(false)}
+              onClick={handleDismissLoginModal}
             />
 
             {/* Modal Dialog Card */}
@@ -1474,7 +1531,7 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className={`relative z-10 w-full max-w-[92vw] sm:max-w-sm rounded-2xl border p-5 sm:p-7 shadow-xl overflow-hidden font-sans ${
+              className={`relative z-10 w-full max-w-[92vw] sm:max-w-sm rounded-2xl border p-5 sm:p-6 shadow-2xl overflow-hidden font-sans ${
                 theme === "light"
                   ? "bg-white border-gray-200 text-gray-900"
                   : theme === "eye-comfort"
@@ -1482,61 +1539,68 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                   : "bg-[#1f1f1f] border-[#333333] text-white"
               }`}
             >
-              {/* Close Button */}
+              {/* Prominent Cross (X) Close Button */}
               <button
                 type="button"
-                onClick={() => setShowLoginRequiredModal(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-lg opacity-50 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                title="Close"
+                onClick={handleDismissLoginModal}
+                className={`absolute top-3.5 right-3.5 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer z-20 border shadow-xs active:scale-90 group ${
+                  theme === "light"
+                    ? "bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700 hover:text-black"
+                    : theme === "eye-comfort"
+                    ? "bg-[#EDE5D5] hover:bg-[#E3D8C3] border-[#DFD3BE] text-[#4A3B2C]"
+                    : "bg-[#2a2a2a] hover:bg-[#383838] border-[#3f3f3f] text-gray-300 hover:text-white"
+                }`}
+                title="Close (Esc)"
+                aria-label="Close modal"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
               </button>
 
-              <div className="flex flex-col items-center text-center pt-1">
+              <div className="flex flex-col items-center text-center pt-2">
                 {/* Clean Professional Icon */}
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3.5 ${
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3.5 shadow-inner ${
                   theme === "light"
-                    ? "bg-gray-100 text-gray-800"
+                    ? "bg-gray-100 text-gray-900 border border-gray-200"
                     : theme === "eye-comfort"
-                    ? "bg-[#EFE8D8] text-[#5A4533]"
-                    : "bg-white/10 text-white"
+                    ? "bg-[#EFE8D8] text-[#5A4533] border border-[#DFD3BE]"
+                    : "bg-white/10 text-white border border-white/10"
                 }`}>
                   <LogIn className="w-5 h-5" />
                 </div>
 
-                <h3 className="text-lg font-semibold tracking-tight mb-2">
+                <h3 className="text-lg font-black tracking-tight mb-1.5">
                   Sign in to continue
                 </h3>
 
-                <p className={`text-xs sm:text-sm leading-relaxed mb-6 ${
+                <p className={`text-xs leading-relaxed mb-5 max-w-[280px] ${
                   theme === "light"
                     ? "text-gray-500"
                     : theme === "eye-comfort"
                     ? "text-[#7A6C5B]"
                     : "text-gray-400"
                 }`}>
-                  Please sign in or create an account to continue searching, chat with verified sellers, and save your conversation history.
+                  Sign in or create a free account to unlock unlimited AI searches, chat directly with verified sellers, and save your chat history.
                 </p>
 
                 {/* Action Buttons */}
-                <div className="w-full space-y-2.5">
+                <div className="w-full space-y-2">
                   <Link
                     href="/login"
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-sm transition-all cursor-pointer ${
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                       theme === "light"
-                        ? "bg-gray-900 hover:bg-black text-white shadow-xs"
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
                         : theme === "eye-comfort"
-                        ? "bg-[#5A4533] hover:bg-[#4A3727] text-white shadow-xs"
-                        : "bg-white text-gray-900 hover:bg-gray-100 shadow-xs"
+                        ? "bg-[#5A4533] hover:bg-[#4A3727] text-white shadow-sm"
+                        : "bg-white text-gray-900 hover:bg-gray-100 shadow-md"
                     }`}
                   >
-                    <LogIn className="w-4 h-4" />
+                    <LogIn className="w-3.5 h-3.5" />
                     <span>Sign In</span>
                   </Link>
 
                   <Link
                     href="/signup"
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-sm border transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs border transition-colors cursor-pointer ${
                       theme === "light"
                         ? "border-gray-200 hover:bg-gray-50 text-gray-700"
                         : theme === "eye-comfort"
@@ -1544,7 +1608,7 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                         : "border-[#383838] hover:bg-white/5 text-gray-300"
                     }`}
                   >
-                    <span>Create Account</span>
+                    <span>Create Free Account</span>
                   </Link>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Heart, Trash2, ExternalLink, MessageSquare, ShoppingBag, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,8 @@ export function WishlistDrawer({
   onRemoveItem,
   onAddToCart
 }: WishlistDrawerProps) {
+  const router = useRouter();
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -79,68 +82,86 @@ export function WishlistDrawer({
                     </Button>
                   </div>
                 ) : (
-                  items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50 hover:border-gray-200 transition-all flex gap-3 group"
-                    >
-                      {/* Image */}
-                      <div className="w-20 h-20 rounded-xl bg-white border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                        <img
-                          src={item.image}
-                          alt={item.title}
-                          className="w-full h-full object-contain p-1"
-                        />
-                      </div>
+                  items.map((item) => {
+                    const productDetailUrl = `/product/${encodeURIComponent(item.id)}?seller=${encodeURIComponent(item.sellerSlug || "")}`;
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-bold text-xs text-gray-900 line-clamp-1 leading-snug" title={item.title}>
-                              {item.title}
-                            </h4>
-                            <button
-                              onClick={() => onRemoveItem(item.id)}
-                              className="text-gray-400 hover:text-red-500 transition-colors shrink-0 cursor-pointer"
-                              title="Remove from wishlist"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <span className="text-[11px] text-gray-500 font-medium block truncate">
-                            {item.sellerName || "Verified Seller"}
-                          </span>
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50 hover:border-gray-200 transition-all flex gap-3 group"
+                      >
+                        {/* Image */}
+                        <div 
+                          onClick={() => {
+                            onClose();
+                            router.push(productDetailUrl);
+                          }}
+                          className="w-20 h-20 rounded-xl bg-white border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center cursor-pointer hover:opacity-90"
+                          title="View product details"
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="w-full h-full object-contain p-1"
+                          />
                         </div>
 
-                        <div className="flex items-center justify-between pt-2">
-                          <span className="font-black text-sm text-gray-900">{item.price}</span>
-                          <div className="flex items-center gap-1.5">
-                            {item.websiteUrl && (
-                              <a
-                                href={item.websiteUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2.5 py-1 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg text-[11px] font-bold text-gray-700 flex items-center gap-1 transition-all"
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 
+                                onClick={() => {
+                                  onClose();
+                                  router.push(productDetailUrl);
+                                }}
+                                className="font-bold text-xs text-gray-900 line-clamp-1 leading-snug cursor-pointer hover:text-indigo-600 transition-colors" 
+                                title={item.title}
                               >
-                                <ExternalLink className="w-3 h-3" /> Buy
-                              </a>
-                            )}
-                            {item.whatsappUrl && (
-                              <a
-                                href={item.whatsappUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all"
+                                {item.title}
+                              </h4>
+                              <button
+                                onClick={() => onRemoveItem(item.id)}
+                                className="text-gray-400 hover:text-red-500 transition-colors shrink-0 cursor-pointer"
+                                title="Remove from wishlist"
                               >
-                                <MessageSquare className="w-3 h-3 text-emerald-600" /> WhatsApp
-                              </a>
-                            )}
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <span className="text-[11px] text-gray-500 font-medium block truncate">
+                              {item.sellerName || "Verified Seller"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2">
+                            <span className="font-black text-sm text-gray-900">{item.price}</span>
+                            <div className="flex items-center gap-1.5">
+                              {item.websiteUrl && (
+                                <a
+                                  href={item.websiteUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg text-[11px] font-bold text-gray-700 flex items-center gap-1 transition-all"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> Buy
+                                </a>
+                              )}
+                              {item.whatsappUrl && (
+                                <a
+                                  href={item.whatsappUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all"
+                                >
+                                  <MessageSquare className="w-3 h-3 text-emerald-600" /> WhatsApp
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 

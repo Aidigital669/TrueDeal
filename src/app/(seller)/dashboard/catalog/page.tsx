@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Sparkles, Globe, Store, Pencil, Trash2, Plus, ArrowDownToLine, Loader2, Inbox, Package, FileUp } from "lucide-react";
+import { Search, Sparkles, Globe, Store, Pencil, Trash2, Plus, ArrowDownToLine, Loader2, Inbox, Package, FileUp, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getProducts, deleteProduct, clearAllProductsAction } from "./actions";
@@ -401,7 +401,12 @@ function ProductRow({ id, name, image, badgeType, category, price, stock, status
 
       {/* 7. ACTIONS (col-span-1) */}
       <div className="col-span-1 flex items-center justify-start lg:justify-end gap-1.5 w-full lg:w-auto mt-2 lg:mt-0">
-        <Link href={`/dashboard/catalog/add?id=${id}`}>
+        <Link href={`/product/${id}`} target="_blank" title="View live public product page">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+            <Eye className="w-3.5 h-3.5" />
+          </Button>
+        </Link>
+        <Link href={`/dashboard/catalog/add?id=${id}`} title="Edit product">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
             <Pencil className="w-3.5 h-3.5" />
           </Button>
@@ -412,6 +417,7 @@ function ProductRow({ id, name, image, badgeType, category, price, stock, status
           disabled={isDeleting}
           onClick={onDelete}
           className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
+          title="Delete product"
         >
           {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-600" /> : <Trash2 className="w-3.5 h-3.5" />}
         </Button>

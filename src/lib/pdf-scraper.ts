@@ -15,12 +15,10 @@ import { getCategoryFallbackImage } from "./image-extractor";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-3.5-flash",
   "gemini-3.8-flash",
-  "gemini-flash-latest",
-  "gemini-2.5-flash-lite",
-  "gemini-3.5-flash-lite"
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+  "gemini-flash-latest"
 ];
 
 export interface ScrapedPdfItem {
@@ -123,16 +121,36 @@ function persistExtractedImage(
  */
 async function cropProductImageFromPage(
   pageBuffer: Buffer | Uint8Array,
-  box_2d: [number, number, number, number],
+  box_2d: [number, number, number, number] | { ymin?: number; xmin?: number; ymax?: number; xmax?: number; top?: number; left?: number; bottom?: number; right?: number },
   filenamePrefix: string,
   pageNumber: number,
   itemIndex: number
 ): Promise<string> {
   try {
-    const [ymin, xmin, ymax, xmax] = box_2d;
+    let ymin: number, xmin: number, ymax: number, xmax: number;
+    if (Array.isArray(box_2d)) {
+      [ymin, xmin, ymax, xmax] = box_2d;
+    } else if (box_2d && typeof box_2d === "object") {
+      ymin = box_2d.ymin ?? box_2d.top ?? 0;
+      xmin = box_2d.xmin ?? box_2d.left ?? 0;
+      ymax = box_2d.ymax ?? box_2d.bottom ?? 0;
+      xmax = box_2d.xmax ?? box_2d.right ?? 0;
+    } else {
+      return "";
+    }
+
     if (typeof ymin !== "number" || typeof xmin !== "number" || typeof ymax !== "number" || typeof xmax !== "number") {
       return "";
     }
+
+    // Auto-detect normalized 0..1 scale if model returns float coordinates
+    if (ymax <= 1 && xmax <= 1 && (ymax > 0 || xmax > 0)) {
+      ymin *= 1000;
+      xmin *= 1000;
+      ymax *= 1000;
+      xmax *= 1000;
+    }
+
     if (ymax <= ymin || xmax <= xmin) return "";
 
     const clampedYmin = Math.max(0, Math.min(1000, ymin));
@@ -743,7 +761,7 @@ CRITICAL EXTRACTION GUIDELINES:
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 35000); // 35s timeout for vision analysis
+          const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout for vision analysis
 
           // Always feed multimodal PDF inline whenever size permits (<= 18MB base64)
           // Also supply the extracted text stream so Gemini has both OCR text and visual coordinates
@@ -868,11 +886,11 @@ CRITICAL EXTRACTION GUIDELINES:
         const box_2d = item.imageLocation?.box_2d || item.box_2d || (Array.isArray(item.imageLocation) ? item.imageLocation : null);
 
         // Priority 1: Crop the exact authentic product photo from high-res page render using Gemini's detected bounding box
-        if (Array.isArray(box_2d) && box_2d.length === 4 && pageScreenshotsMap.has(pageNum)) {
+        if (box_2d && pageScreenshotsMap.has(pageNum)) {
           const pageBuf = pageScreenshotsMap.get(pageNum)!;
           assignedImage = await cropProductImageFromPage(
             pageBuf,
-            box_2d as [number, number, number, number],
+            box_2d,
             filename,
             pageNum,
             index + 1

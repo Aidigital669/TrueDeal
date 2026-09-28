@@ -5,6 +5,8 @@ import {
   saveChatMessage,
   getSessionMessages
 } from "@/lib/chat-db";
+import { recordSearchQuery } from "@/lib/telemetry";
+import { getCurrentUserSession } from "@/lib/auth-actions";
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +21,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const userSession = await getCurrentUserSession();
     const userId = await getEffectiveUserId();
 
     // 1. Get or create session
@@ -32,7 +35,7 @@ export async function POST(req: Request) {
       content: m.content
     }));
 
-    // 3. Persist user message to chat_messages
+    // 3. Persist user message to chat_messages in database
     const userMsgDoc = await saveChatMessage(sessionId, userId, "user", message);
 
     // 4. Process the query with TrueDeal's Search & AI Engine
@@ -42,9 +45,12 @@ export async function POST(req: Request) {
     let listings: any[] = [];
     let companyProfile: any = null;
 
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "";
+    const clientUserAgent = req.headers.get("user-agent") || "";
+
     try {
       // Internal call to /api/search-listings with absolute or relative URL
-      const host = req.headers.get("host") || "localhost:3000";
+      const host = req.headers.get("host") || "localhost:3001";
       const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
       const searchRes = await fetch(`${protocol}://${host}/api/search-listings`, {
         method: "POST",
@@ -52,6 +58,9 @@ export async function POST(req: Request) {
         body: JSON.stringify({ 
           query: message, 
           visitorId: userId,
+          sessionId,
+          ip: clientIp,
+          userAgent: clientUserAgent,
           conversationHistory
         })
       });
@@ -71,7 +80,28 @@ export async function POST(req: Request) {
       assistantText = `I processed your request for "${message}". However, our search index was momentarily busy. Please try asking again.`;
     }
 
-    // 4. Persist assistant response to chat_messages
+    // 5. Explicitly persist complete search data in database (both search_logs and searches collections)
+    recordSearchQuery({
+      query: message,
+      visitorId: userId,
+      userId: userSession?.userId,
+      userEmail: userSession?.email,
+      userName: userSession?.name,
+      sessionId,
+      resultsCount: listings.length,
+      matchedListings: listings.slice(0, 10).map((l: any) => ({
+        id: l.id,
+        title: l.title,
+        price: l.price,
+        category: l.category
+      })),
+      appliedFilters,
+      ip: clientIp,
+      userAgent: clientUserAgent,
+      source: "chatgpt_search"
+    }).catch(err => console.error("Error saving search data in database:", err));
+
+    // 6. Persist assistant response to chat_messages in database
     const assistantMsgDoc = await saveChatMessage(
       sessionId,
       userId,
