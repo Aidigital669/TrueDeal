@@ -39,7 +39,8 @@ import {
   Building2,
   Leaf,
   Laptop,
-  Store
+  Store,
+  Share2
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -75,6 +76,8 @@ export interface ChatMessage {
 
 interface ChatGPTInterfaceProps {
   initialSessionId?: string;
+  initialQuery?: string;
+  initialSeller?: string;
   currentUser?: {
     name: string;
     email: string;
@@ -178,11 +181,43 @@ const themeStyles = {
   }
 };
 
-export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInterfaceProps) {
+export function ChatGPTInterface({
+  initialSessionId,
+  initialQuery,
+  initialSeller,
+  currentUser
+}: ChatGPTInterfaceProps) {
   const router = useRouter();
 
-  // Powerful 3D Eye-Catching Intro Animation on arrival
-  const [showIntro, setShowIntro] = useState(true);
+  // Powerful 3D Eye-Catching Intro Animation on arrival (skips if landing from search link)
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("q") || initialQuery) return false;
+      if (sessionStorage.getItem("truedeal_intro_shown")) return false;
+    }
+    return !initialQuery;
+  });
+
+  // Marketing & SEO Search Share Helpers
+  const [copiedShareQuery, setCopiedShareQuery] = useState<string | null>(null);
+
+  const handleCopyShareLink = (query: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (typeof window === "undefined") return;
+    const origin = window.location.origin || "https://truedeal.in";
+    const shareUrl = `${origin}/chat?q=${encodeURIComponent(query.trim())}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedShareQuery(query);
+    setTimeout(() => setCopiedShareQuery(null), 2500);
+  };
+
+  const getWhatsAppShareUrl = (query: string) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://truedeal.in";
+    const shareUrl = `${origin}/chat?q=${encodeURIComponent(query.trim())}`;
+    const text = `Check out verified listings for "${query}" on TrueDeal AI: ${shareUrl}`;
+    return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  };
 
   // Themes: "dark" | "light" | "eye-comfort"
   const [theme, setTheme] = useState<ThemeMode>("dark");
@@ -271,6 +306,13 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
       localStorage.removeItem("truedeal_guest_search_count");
       localStorage.removeItem("truedeal_guest_dismissed_login");
     } catch {}
+  }, []);
+
+  // Clean /chat/session_... from URL to keep links clean and SEO-friendly
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/chat/session_")) {
+      window.history.replaceState({}, "", "/chat");
+    }
   }, []);
 
   // Refs
@@ -434,6 +476,12 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
     setMessages(prev => [...prev, tempUserMsg]);
     setIsGenerating(true);
 
+    // Keep URL clean, SEO-friendly, and marketing-ready with search query
+    if (typeof window !== "undefined" && window.history && window.history.replaceState) {
+      const cleanQ = textToSend.slice(0, 100);
+      window.history.replaceState({}, "", `/chat?q=${encodeURIComponent(cleanQ)}`);
+    }
+
     try {
       const res = await fetch("/api/chat/send", {
         method: "POST",
@@ -450,8 +498,11 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
           // If this was a new session, update active ID and refresh session list
           if (!activeSessionId || activeSessionId !== data.sessionId) {
             setActiveSessionId(data.sessionId);
-            if (window.history && window.history.pushState) {
-              window.history.pushState({}, "", `/chat/${data.sessionId}`);
+            // Ensure URL stays on /chat?q=... and NEVER exposes technical /chat/session_...
+            if (typeof window !== "undefined" && window.history && window.history.replaceState) {
+              if (window.location.pathname.startsWith("/chat/session_")) {
+                window.history.replaceState({}, "", `/chat?q=${encodeURIComponent(textToSend.slice(0, 100))}`);
+              }
             }
           }
 
@@ -515,6 +566,24 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
     }
   };
 
+  // Trigger initial search if landed via marketing/SEO search link (/chat?q=...)
+  const hasTriggeredInitialQuery = useRef(false);
+  useEffect(() => {
+    if (hasTriggeredInitialQuery.current) return;
+
+    let queryToRun = initialQuery?.trim();
+    if (!queryToRun && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("q")?.trim();
+      if (q) queryToRun = q;
+    }
+
+    if (queryToRun) {
+      hasTriggeredInitialQuery.current = true;
+      handleSendMessage(queryToRun);
+    }
+  }, [initialQuery]);
+
   // Create New Chat
   const handleStartNewChat = () => {
     setActiveSessionId(null);
@@ -523,8 +592,8 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
     setSessionSearchCount(0);
     setCanSearchAfterCross(false);
     setShowLoginRequiredModal(false);
-    if (window.history && window.history.pushState) {
-      window.history.pushState({}, "", "/");
+    if (typeof window !== "undefined" && window.history && window.history.replaceState) {
+      window.history.replaceState({}, "", "/chat");
     }
     setIsMobileSidebarOpen(false);
   };
@@ -1177,9 +1246,20 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
             {/* MESSAGE STREAM */}
             {messages.length > 0 && !loadingMessages && (
               <div className="space-y-6 pb-6 pt-2">
-                {messages.map((msg, index) => (
-                  <motion.div
-                    key={index}
+                {messages.map((msg, index) => {
+                  let associatedQuery = "";
+                  if (msg.role === "assistant") {
+                    for (let i = index - 1; i >= 0; i--) {
+                      if (messages[i].role === "user") {
+                        associatedQuery = messages[i].content;
+                        break;
+                      }
+                    }
+                  }
+
+                  return (
+                    <motion.div
+                      key={index}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
@@ -1241,6 +1321,7 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                                 {msg.metadata.listings.map((item: any, lIdx: number) => {
                                   const productDetailUrl = `/product/${encodeURIComponent(item.id)}?seller=${encodeURIComponent(item.sellerSlug || "")}`;
+                                  const companyUrl = item.sellerSlug ? `/p/${encodeURIComponent(item.sellerSlug)}` : null;
 
                                   return (
                                     <div
@@ -1263,10 +1344,21 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                                           </div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-1.5 mb-1">
+                                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20">
                                               {item.category || "Verified"}
                                             </span>
+                                            {companyUrl && (item.sellerName || item.sellerSlug) && (
+                                              <Link
+                                                href={companyUrl}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500 dark:text-amber-400 hover:underline font-bold text-[9px] border border-amber-500/30"
+                                                title={`Visit ${item.sellerName || item.sellerSlug} on TrueDeal`}
+                                              >
+                                                <span>🏢 {item.sellerName || item.sellerSlug}</span>
+                                                <ExternalLink className="w-2 h-2 opacity-60" />
+                                              </Link>
+                                            )}
                                             {item.badge && (
                                               <span className="text-[9px] font-bold text-emerald-500 truncate">
                                                 {item.badge}
@@ -1311,6 +1403,17 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                                           </a>
                                         ) : null}
 
+                                        {companyUrl && (
+                                          <Link
+                                            href={companyUrl}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="flex items-center justify-center gap-1 py-2 sm:py-1.5 px-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 dark:text-amber-400 font-bold text-[11px] transition-colors"
+                                            title="View company page"
+                                          >
+                                            <span>Company Page</span>
+                                          </Link>
+                                        )}
+
                                         <Link
                                           href={productDetailUrl}
                                           onClick={(e) => e.stopPropagation()}
@@ -1323,6 +1426,51 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                                     </div>
                                   );
                                 })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* SEO & Marketing Campaign Share Bar */}
+                          {associatedQuery && msg.metadata?.listings && msg.metadata.listings.length > 0 && (
+                            <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                                  Marketing Link
+                                </span>
+                                <span className="font-mono text-[11px] opacity-75 truncate max-w-[180px] sm:max-w-xs">
+                                  truedeal.in/chat?q={encodeURIComponent(associatedQuery)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 ml-auto">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleCopyShareLink(associatedQuery, e)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/35 text-indigo-300 border border-indigo-500/30 font-semibold text-[11px] transition-all cursor-pointer"
+                                  title="Copy clean SEO search link for WhatsApp, Google Ads, and social campaigns"
+                                >
+                                  {copiedShareQuery === associatedQuery ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      <span className="text-emerald-300">Link Copied!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3.5 h-3.5" />
+                                      <span>Copy Marketing Link</span>
+                                    </>
+                                  )}
+                                </button>
+                                <a
+                                  href={getWhatsAppShareUrl(associatedQuery)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/35 text-emerald-300 border border-emerald-500/30 font-semibold text-[11px] transition-all cursor-pointer"
+                                  title="Share this search directly to WhatsApp"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Share on WhatsApp</span>
+                                </a>
                               </div>
                             </div>
                           )}
@@ -1389,6 +1537,21 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
                             </button>
+
+                            {associatedQuery && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleCopyShareLink(associatedQuery, e)}
+                                className="p-1.5 rounded-lg hover:opacity-100 transition-colors"
+                                title="Copy SEO Search Link for Marketing"
+                              >
+                                {copiedShareQuery === associatedQuery ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                ) : (
+                                  <Share2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1401,7 +1564,8 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
                       </div>
                     )}
                   </motion.div>
-                ))}
+                );
+              })}
 
                 {/* Thinking Indicator */}
                 {isGenerating && (
@@ -1631,8 +1795,10 @@ export function ChatGPTInterface({ initialSessionId, currentUser }: ChatGPTInter
         onClick={() => {
           if (!isEditing) {
             setActiveSessionId(session.sessionId);
-            if (window.history && window.history.pushState) {
-              window.history.pushState({}, "", `/chat/${session.sessionId}`);
+            if (typeof window !== "undefined" && window.history && window.history.replaceState) {
+              if (window.location.pathname.startsWith("/chat/session_")) {
+                window.history.replaceState({}, "", "/chat");
+              }
             }
             setIsMobileSidebarOpen(false);
           }

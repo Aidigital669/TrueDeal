@@ -3,8 +3,17 @@ import { ChatGPTInterface } from "@/components/chat/ChatGPTInterface";
 import { getCurrentUserSession } from "@/lib/auth-actions";
 
 export const metadata: Metadata = {
-  title: "TrueDeal AI - Chat Conversation",
-  description: "Chat with TrueDeal AI to discover products, services, properties, and direct verified sellers."
+  title: "TrueDeal AI - Marketplace Assistant",
+  description: "Chat with TrueDeal AI to discover products, services, properties, and direct verified sellers.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 export default async function ChatSessionPage(props: {
