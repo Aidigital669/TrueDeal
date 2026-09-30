@@ -129,7 +129,13 @@ function ConnectWebsiteContent() {
         });
       }
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        throw new Error("Server returned an invalid response (likely a 413 Payload Too Large error from your hosting provider). Ensure your server/Nginx/Vercel allows large file uploads.");
+      }
+
       if (data.logs && Array.isArray(data.logs)) {
         setPdfLogs(data.logs);
       }
@@ -530,6 +536,39 @@ function ConnectWebsiteContent() {
       }
     } catch (e) {
       console.warn("Card image enhancement error:", e);
+    } finally {
+      setEnhancingCardIndex(null);
+    }
+  };
+
+  // On-demand Python image enhancer for a single PDF extracted item
+  const handleEnhancePdfCardImage = async (p: any, index: number) => {
+    const targetUrl = p.primaryImage || p.dataUrl || p.images?.[0];
+    if (!targetUrl) return;
+    setEnhancingCardIndex(index); // Reusing the same state variable for simplicity
+    try {
+      const res = await fetch("/api/enhance-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: [targetUrl] })
+      });
+      const data = await res.json();
+      if (data.success && data.results?.[0]?.enhancedUrl) {
+        const newUrl = data.results[0].enhancedUrl;
+        setPdfResult(prev => {
+          if (!prev?.products) return prev;
+          const updated = [...prev.products];
+          updated[index] = {
+            ...updated[index],
+            primaryImage: newUrl,
+            dataUrl: newUrl,
+            images: updated[index].images?.map((img: any, i: number) => i === 0 ? newUrl : img) || [newUrl]
+          };
+          return { ...prev, products: updated };
+        });
+      }
+    } catch (e) {
+      console.warn("PDF Card image enhancement error:", e);
     } finally {
       setEnhancingCardIndex(null);
     }
@@ -2832,6 +2871,28 @@ function ConnectWebsiteContent() {
                             <div className="flex items-center gap-1 mt-3 text-[10px] text-purple-600 font-bold">
                               <Sparkles className="w-3 h-3 shrink-0" />
                               <span className="truncate">{item.aiKeywords.slice(0, 3).join(", ")}</span>
+                            </div>
+                          )}
+
+                          {/* On-demand Python photo enhancement button */}
+                          {!isImported && !(item.primaryImage?.includes("/uploads/enhanced/") || item.dataUrl?.includes("/uploads/enhanced/")) && (
+                            <div className="mt-3">
+                              <button
+                                type="button"
+                                onClick={() => handleEnhancePdfCardImage(item, idx)}
+                                disabled={enhancingCardIndex === idx}
+                                className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/80 rounded-xl border border-emerald-200/80 transition-colors cursor-pointer"
+                              >
+                                {enhancingCardIndex === idx ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Enhancing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="w-3.5 h-3.5" /> Enhance Image
+                                  </>
+                                )}
+                              </button>
                             </div>
                           )}
                         </div>
