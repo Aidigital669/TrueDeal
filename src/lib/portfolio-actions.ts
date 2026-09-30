@@ -5,6 +5,7 @@ import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserSession } from "./auth-actions";
 import { cookies } from "next/headers";
+import { runPythonImageEnhancer } from "./python-image-enhancer";
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -445,15 +446,31 @@ export async function importScrapedPortfolioAction(companyData: any) {
       avgRating = Number((sum / scrapedReviews.length).toFixed(1));
     }
 
+    // Gather and enhance portfolio gallery, logo and banner with Python AI
+    const galleryItems = (companyData.gallery || []).filter((g: any) => Boolean(g && g.url));
+    const mediaUrlsToEnhance: string[] = galleryItems.map((g: any) => g.url);
+    if (companyData.logo && typeof companyData.logo === "string") mediaUrlsToEnhance.push(companyData.logo);
+    if (companyData.bannerImage && typeof companyData.bannerImage === "string") mediaUrlsToEnhance.push(companyData.bannerImage);
+
+    const enhancedMediaMap = new Map<string, string>();
+    try {
+      if (mediaUrlsToEnhance.length > 0) {
+        const enhResults = await runPythonImageEnhancer(mediaUrlsToEnhance);
+        for (const r of enhResults) {
+          if (r && r.enhancedUrl) enhancedMediaMap.set(r.originalUrl, r.enhancedUrl);
+        }
+      }
+    } catch (e) {
+      console.warn("[Portfolio Actions] Python media enhancement fallback:", e);
+    }
+
     // Format gallery
-    const scrapedGallery: PortfolioGalleryItem[] = (companyData.gallery || [])
-      .filter((g: any) => Boolean(g && g.url))
-      .map((g: any, idx: number) => ({
-        id: `gal-${Date.now()}-${idx}`,
-        url: g.url,
-        caption: g.caption || `${companyData.name || "Showcase"} Photo ${idx + 1}`,
-        category: g.category || "Showcase"
-      }));
+    const scrapedGallery: PortfolioGalleryItem[] = galleryItems.map((g: any, idx: number) => ({
+      id: `gal-${Date.now()}-${idx}`,
+      url: enhancedMediaMap.get(g.url) || g.url,
+      caption: g.caption || `${companyData.name || "Showcase"} Photo ${idx + 1}`,
+      category: g.category || "Showcase"
+    }));
 
     // Format FAQs
     const scrapedFaqs: PortfolioFAQ[] = (companyData.faqs || [])
@@ -484,8 +501,8 @@ export async function importScrapedPortfolioAction(companyData: any) {
     if (companyData.tagline) updatePayload.tagline = companyData.tagline;
     if (companyData.about) updatePayload.about = companyData.about;
     if (companyData.mission) updatePayload.mission = companyData.mission;
-    if (companyData.logo) updatePayload.logo = companyData.logo;
-    if (companyData.bannerImage) updatePayload.bannerImage = companyData.bannerImage;
+    if (companyData.logo) updatePayload.logo = enhancedMediaMap.get(companyData.logo) || companyData.logo;
+    if (companyData.bannerImage) updatePayload.bannerImage = enhancedMediaMap.get(companyData.bannerImage) || companyData.bannerImage;
     if (companyData.businessType) updatePayload.businessType = companyData.businessType;
     if (companyData.yearEstablished) updatePayload.yearEstablished = companyData.yearEstablished;
     if (companyData.teamSize) updatePayload.teamSize = companyData.teamSize;

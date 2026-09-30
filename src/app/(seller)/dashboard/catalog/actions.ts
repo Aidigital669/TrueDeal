@@ -5,6 +5,7 @@ import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { getCurrentUserSession } from "@/lib/auth-actions";
 import { getCategoryFallbackImage } from "@/lib/image-extractor";
+import { enhanceScrapedProductsBatchWithPython } from "@/lib/python-image-enhancer";
 
 // Seller-scoped In-Memory product registry (keyed by sellerSlug or sellerId)
 const LOCAL_IMPORTED_PRODUCTS_MAP = new Map<string, any[]>();
@@ -557,58 +558,71 @@ export async function importScrapedProductAction(productData: {
   portfolioSlug?: string;
 }) {
   try {
+    // 0. Python AI Image Enhancer: super-resolve, denoise, and optimize images on import
+    let activeProductData = productData;
+    let isEnhanced = false;
+    try {
+      const { enhancedProducts, totalEnhanced } = await enhanceScrapedProductsBatchWithPython([productData]);
+      if (enhancedProducts && enhancedProducts.length > 0) {
+        activeProductData = enhancedProducts[0];
+        isEnhanced = totalEnhanced > 0;
+      }
+    } catch (enhErr) {
+      console.warn("[Catalog Actions] Python image enhancement fallback:", enhErr);
+    }
+
     const session = await getCurrentUserSession();
     const sellerSlug = resolveDynamicSellerSlug(
       session?.slug,
-      productData.sourceUrl || productData.buyUrl || productData.productUrl,
-      productData.brand,
-      productData.sellerSlug || productData.portfolioSlug
+      activeProductData.sourceUrl || activeProductData.buyUrl || activeProductData.productUrl,
+      activeProductData.brand,
+      activeProductData.sellerSlug || activeProductData.portfolioSlug
     );
     const sellerKey = sellerSlug;
-    const brandName = resolveDynamicBrand(session?.storeName, productData.brand, sellerSlug);
+    const brandName = resolveDynamicBrand(session?.storeName, activeProductData.brand, sellerSlug);
 
-    const primaryImg = (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
-      ? productData.primaryImage
-      : ((productData.images && productData.images.length > 0 && productData.images[0])
-        ? productData.images[0]
-        : getCategoryFallbackImage(productData.category || "", productData.title));
+    const primaryImg = (activeProductData.primaryImage && activeProductData.primaryImage.trim().length > 0 && !activeProductData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
+      ? activeProductData.primaryImage
+      : ((activeProductData.images && activeProductData.images.length > 0 && activeProductData.images[0])
+        ? activeProductData.images[0]
+        : getCategoryFallbackImage(activeProductData.category || "", activeProductData.title));
 
-    const allImages = (productData.images && productData.images.length > 0 && productData.images.some(Boolean))
-      ? productData.images.filter(Boolean).map((url, i) => ({ url, isPrimary: i === 0 }))
+    const allImages = (activeProductData.images && activeProductData.images.length > 0 && activeProductData.images.some(Boolean))
+      ? activeProductData.images.filter(Boolean).map((url, i) => ({ url, isPrimary: i === 0 }))
       : [{ url: primaryImg, isPrimary: true }];
 
-    const inventoryCount = typeof productData.inventory === "number" ? productData.inventory : 20;
-    const aiVis = productData.aiVisibility || 95;
+    const inventoryCount = typeof activeProductData.inventory === "number" ? activeProductData.inventory : 20;
+    const aiVis = activeProductData.aiVisibility || 95;
     const productId = `imported-${Date.now()}`;
 
     const doc = {
       id: productId,
-      title: productData.title,
-      name: productData.title,
+      title: activeProductData.title,
+      name: activeProductData.title,
       brand: brandName,
       sellerSlug,
       portfolioSlug: sellerSlug,
-      modelName: productData.model || "",
-      sku: productData.sku || `SKU-${Date.now().toString().slice(-6)}`,
-      shortDesc: productData.shortDesc || productData.description || "",
-      description: productData.description || productData.shortDesc || "",
-      price: productData.price,
-      originalPrice: productData.originalPrice || (productData.price > 0 ? Math.round(productData.price * 1.15) : 0),
-      discount: productData.discount || "",
+      modelName: activeProductData.model || "",
+      sku: activeProductData.sku || `SKU-${Date.now().toString().slice(-6)}`,
+      shortDesc: activeProductData.shortDesc || activeProductData.description || "",
+      description: activeProductData.description || activeProductData.shortDesc || "",
+      price: activeProductData.price,
+      originalPrice: activeProductData.originalPrice || (activeProductData.price > 0 ? Math.round(activeProductData.price * 1.15) : 0),
+      discount: activeProductData.discount || "",
       inventory: inventoryCount,
-      category: productData.category || "General Merchandise",
-      type: productData.category?.toLowerCase().includes("service") ? "Service" : "Product",
-      specs: productData.specs || [],
+      category: activeProductData.category || "General Merchandise",
+      type: activeProductData.category?.toLowerCase().includes("service") ? "Service" : "Product",
+      specs: activeProductData.specs || [],
       deliveryAvailable: true,
       pickupAvailable: true,
       deliveryTime: "2-4 Business Days",
-      aiKeywords: productData.aiKeywords || [productData.title, brandName, productData.category || "Store Item"],
+      aiKeywords: activeProductData.aiKeywords || [activeProductData.title, brandName, activeProductData.category || "Store Item"],
       aiVisibility: aiVis,
       aiSubtext: aiVis >= 90 ? "AI Optimized & Verified" : "High Visibility",
       badgeType: "website",
-      sourceUrl: productData.sourceUrl || productData.buyUrl || productData.productUrl || "",
-      buyUrl: productData.buyUrl || productData.sourceUrl || productData.productUrl || "",
-      productUrl: productData.productUrl || productData.buyUrl || productData.sourceUrl || "",
+      sourceUrl: activeProductData.sourceUrl || activeProductData.buyUrl || activeProductData.productUrl || "",
+      buyUrl: activeProductData.buyUrl || activeProductData.sourceUrl || activeProductData.productUrl || "",
+      productUrl: activeProductData.productUrl || activeProductData.buyUrl || activeProductData.sourceUrl || "",
       attention: inventoryCount <= 0,
       sparkles: aiVis >= 90,
       isActive: true,
@@ -636,7 +650,7 @@ export async function importScrapedProductAction(productData: {
         },
         { upsert: true }
       );
-      console.log(`Successfully upserted product "${productData.title}" in collection "${col.collectionName}"!`);
+      console.log(`Successfully upserted product "${activeProductData.title}" in collection "${col.collectionName}"!`);
     } catch (dbErr: any) {
       console.error("MongoDB Atlas persist notice:", dbErr.message);
     }
@@ -648,13 +662,17 @@ export async function importScrapedProductAction(productData: {
     return {
       success: true,
       productId,
-      message: `"${productData.title}" has been successfully imported to your catalog!`
+      enhanced: isEnhanced,
+      enhancedProduct: activeProductData,
+      message: `"${activeProductData.title}" has been ${isEnhanced ? "AI enhanced & " : ""}successfully imported to your catalog!`
     };
   } catch (error: any) {
     const fallbackId = `imported-${Date.now()}`;
     return {
       success: true,
       productId: fallbackId,
+      enhanced: false,
+      enhancedProduct: productData,
       message: `"${productData.title}" has been successfully imported to your catalog!`
     };
   }
@@ -692,8 +710,21 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
   }
 
   try {
+    // 0. AI Python Batch Image Enhancer: super-resolves, balances contrast, and sharpens all scraper images in parallel
+    let effectiveProductsList = productsList;
+    let totalEnhanced = 0;
+    try {
+      const res = await enhanceScrapedProductsBatchWithPython(productsList);
+      if (res && res.enhancedProducts && res.enhancedProducts.length > 0) {
+        effectiveProductsList = res.enhancedProducts;
+        totalEnhanced = res.totalEnhanced;
+      }
+    } catch (enhErr) {
+      console.warn("[Catalog Actions] Python batch image enhancement fallback:", enhErr);
+    }
+
     const session = await getCurrentUserSession();
-    const firstItem = productsList[0];
+    const firstItem = effectiveProductsList[0];
     const sellerSlug = resolveDynamicSellerSlug(
       session?.slug,
       firstItem?.sourceUrl || firstItem?.buyUrl || firstItem?.productUrl || firstItem?.url,
@@ -703,7 +734,7 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
     const sellerKey = sellerSlug;
     const defaultBrand = resolveDynamicBrand(session?.storeName, firstItem?.brand, sellerSlug);
 
-    const docsToInsert = productsList.map((productData, index) => {
+    const docsToInsert = effectiveProductsList.map((productData, index) => {
       const primaryImg = (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
         ? productData.primaryImage
         : ((productData.images && productData.images.length > 0 && productData.images[0])
@@ -800,12 +831,16 @@ export async function importBatchScrapedProductsAction(productsList: Array<{
     return {
       success: true,
       count: docsToInsert.length,
-      message: `Successfully imported ${docsToInsert.length} products into your catalog!`
+      totalEnhanced,
+      enhancedProducts: effectiveProductsList,
+      message: `Successfully imported ${docsToInsert.length} products (${totalEnhanced} images AI enhanced with Python)!`
     };
   } catch (error: any) {
     return {
       success: true,
       count: productsList.length,
+      totalEnhanced: 0,
+      enhancedProducts: productsList,
       message: `Successfully imported ${productsList.length} products into your catalog!`
     };
   }

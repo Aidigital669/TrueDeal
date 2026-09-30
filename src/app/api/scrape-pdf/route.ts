@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
       const autoImport = formData.get("autoImport") === "true";
 
       if (file) {
-        // Enforce max 25MB file size limit
-        if (file.size > 25 * 1024 * 1024) {
+        // Enforce max 200MB file size limit
+        if (file.size > 200 * 1024 * 1024) {
           return NextResponse.json(
-            { success: false, error: "File exceeds maximum size limit of 25MB." },
+            { success: false, error: "File exceeds maximum size limit of 200MB." },
             { status: 400 }
           );
         }
