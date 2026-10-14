@@ -1,6 +1,6 @@
 "use server";
 
-import clientPromise, { getDb, getSellerProductCollectionName } from "./mongodb";
+import clientPromise, { getDb, getSellerProductCollectionName, cleanSellerSlug } from "./mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
 import { cookies } from "next/headers";
@@ -449,8 +449,8 @@ export async function loginUserAction(formData: {
       $or: [{ userId: user._id }, { email }]
     });
 
-    let slug = seller?.slug || (isAnvAccount ? "anvreeality" : isAyurmorAccount ? "ayurmor-more" : (user.slug || generateSlug(seller?.storeName || user.name) || "seller-store"));
-    let storeName = seller?.storeName || (isAnvAccount ? "ANV REEALTY" : isAyurmorAccount ? "Ayurmor" : (user.name || "Seller Store"));
+    let slug = seller?.slug || (isAnvAccount ? "anvreeality" : isAyurmorAccount ? "ayurmor-more" : (user.slug || generateSlug(seller?.storeName || user.name) || "anvreeality"));
+    let storeName = seller?.storeName || (isAnvAccount ? "ANV REEALTY" : isAyurmorAccount ? "Ayurmor" : (user.name || "ANV REEALTY"));
 
     let portfolio = await db.collection("portfolios").findOne({
       $or: [{ userId: user._id }, { slug }]
@@ -475,6 +475,10 @@ export async function loginUserAction(formData: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 30,
       path: "/"
+    });
+    cookieStore.set("truedeal_seller_slug", slug, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30
     });
 
     revalidatePath("/dashboard");
@@ -507,10 +511,93 @@ export async function getCurrentUserSession(): Promise<UserSession | null> {
   try {
     const cookieStore = await cookies();
     const cookie = cookieStore.get(SESSION_COOKIE_NAME);
-    if (!cookie?.value) return null;
-    return JSON.parse(cookie.value) as UserSession;
+    if (cookie?.value) {
+      return JSON.parse(cookie.value) as UserSession;
+    }
+
+    // Check if active seller cookie is present
+    const sellerSlugCookie = cookieStore.get("truedeal_seller_slug")?.value;
+    if (sellerSlugCookie) {
+      const db = await getDb();
+      const clean = cleanSellerSlug(sellerSlugCookie);
+      const isAnv = sellerSlugCookie.includes("anv");
+      const seller = await db.collection("sellers").findOne({
+        $or: [
+          { slug: sellerSlugCookie },
+          { slug: clean },
+          ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : [])
+        ]
+      });
+      if (seller) {
+        return {
+          userId: seller.userId ? seller.userId.toString() : `seller-${clean}`,
+          email: seller.email || "contact@anvreealty.com",
+          name: seller.storeName || (isAnv ? "ANV REEALTY" : "Verified Merchant"),
+          role: "seller",
+          storeName: seller.storeName,
+          slug: isAnv ? "anvreeality" : (seller.slug || clean)
+        };
+      }
+    }
+    return null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Switch or set the active seller session (e.g. after scraping or selecting a merchant)
+ */
+export async function setActiveSellerSessionAction(sellerSlug: string) {
+  try {
+    const db = await getDb();
+    const cleanSlug = cleanSellerSlug(sellerSlug);
+    const isAnv = sellerSlug.includes("anv");
+    const isMontera = sellerSlug.includes("montera");
+
+    const seller = await db.collection("sellers").findOne({
+      $or: [
+        { slug: sellerSlug },
+        { slug: cleanSlug },
+        ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : []),
+        ...(isMontera ? [{ slug: "montera-tiles" }] : [])
+      ]
+    });
+
+    const targetSlug = isAnv ? "anvreeality" : (seller?.slug || cleanSlug);
+    const storeName = seller?.storeName || (isAnv ? "ANV REEALTY" : isMontera ? "Montera Tiles" : targetSlug);
+    const email = seller?.email || (isAnv ? "contact@anvreealty.com" : `contact@${cleanSlug}.com`);
+
+    const sessionPayload: UserSession = {
+      userId: seller?.userId ? seller.userId.toString() : `seller-${targetSlug}`,
+      email,
+      name: storeName,
+      role: "seller",
+      storeName,
+      slug: targetSlug
+    };
+
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, JSON.stringify(sessionPayload), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 30,
+      path: "/"
+    });
+    cookieStore.set("truedeal_seller_slug", targetSlug, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/portfolio");
+    revalidatePath("/dashboard/catalog");
+    revalidatePath("/dashboard/business");
+    revalidatePath("/connect");
+
+    return { success: true, user: sessionPayload, redirect: `/dashboard?seller=${targetSlug}` };
+  } catch (err: any) {
+    return { success: false, error: err.message };
   }
 }
 

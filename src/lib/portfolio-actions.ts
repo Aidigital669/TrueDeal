@@ -168,7 +168,7 @@ function safeObjectId(id?: string): ObjectId | null {
 export async function getSellerPortfolio(): Promise<{ success: boolean; portfolio: PortfolioData }> {
   try {
     const session = await getCurrentUserSession();
-    const slug = session?.slug || "seller-store";
+    const slug = session?.slug || "anvreeality";
     const db = await getDb();
     
     let portfolioDoc = await db.collection("portfolios").findOne({
@@ -176,8 +176,11 @@ export async function getSellerPortfolio(): Promise<{ success: boolean; portfoli
     });
 
     if (!portfolioDoc) {
-      const sellerDoc = await db.collection("sellers").findOne({ slug });
-      const storeName = sellerDoc?.storeName || session?.storeName || session?.name || "Seller Store";
+      const isAnv = slug.includes("anv");
+      const sellerDoc = await db.collection("sellers").findOne({
+        $or: [{ slug }, ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }] : [])]
+      });
+      const storeName = sellerDoc?.storeName || session?.storeName || session?.name || (isAnv ? "ANV REEALTY" : "ANV REEALTY");
       
       const newDoc: any = {
         ...DEFAULT_PORTFOLIO,
@@ -220,7 +223,7 @@ export async function getSellerPortfolio(): Promise<{ success: boolean; portfoli
 export async function saveSellerPortfolio(data: Partial<PortfolioData>): Promise<{ success: boolean; slug?: string; error?: string }> {
   try {
     const session = await getCurrentUserSession();
-    const rawSlug = data.slug || session?.slug || "seller-store";
+    const rawSlug = data.slug || session?.slug || "anvreeality";
     const newSlug = rawSlug
       .toLowerCase()
       .trim()
@@ -612,7 +615,7 @@ export async function importScrapedPortfolioAction(companyData: any) {
 export async function importScrapedReviewsAction(reviews: Array<any>) {
   try {
     const session = await getCurrentUserSession();
-    const slug = session?.slug || "seller-store";
+    const slug = session?.slug || "anvreeality";
     const db = await getDb();
 
     const formattedReviews: PortfolioReview[] = (reviews || []).map((r, idx) => ({

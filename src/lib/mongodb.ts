@@ -59,12 +59,24 @@ export async function getDb(): Promise<Db> {
  * Clean slug into a safe, valid collection name component
  */
 export function cleanSellerSlug(slug: string): string {
-  if (!slug) return "default";
-  return slug
-    .toLowerCase()
-    .trim()
+  if (!slug) return "anvreeality";
+  const s = slug.toLowerCase().trim();
+  if (
+    s === "anv" ||
+    s === "anv-reealty" ||
+    s === "anvreeality" ||
+    s === "anv_reealty" ||
+    s === "anv-reality" ||
+    s === "anvrealty"
+  ) {
+    return "anvreeality";
+  }
+  if (s === "seller-store" || s === "seller_store" || s === "default") {
+    return "anvreeality";
+  }
+  return s
     .replace(/[^a-z0-9_]/g, "_")
-    .replace(/^_+|_+$/g, "") || "store";
+    .replace(/^_+|_+$/g, "") || "anvreeality";
 }
 
 /**
@@ -72,14 +84,14 @@ export function cleanSellerSlug(slug: string): string {
  * Examples:
  * - "anvreeality" -> "products_anvreeality"
  * - "ayurmor-more" -> "products_ayurmor_more"
- * - "nexus-store"  -> "products_nexus_store"
+ * - "montera-tiles" -> "products_montera_tiles"
  */
 export function getSellerProductCollectionName(slug?: string): string {
   if (!slug || slug === "all" || slug === "global" || slug === "master") {
     return "products";
   }
   const clean = cleanSellerSlug(slug);
-  if (clean === "products" || clean === "default") {
+  if (clean === "products") {
     return "products";
   }
   return `products_${clean}`;
@@ -107,6 +119,7 @@ export async function getAllSellerProductCollectionNames(): Promise<string[]> {
     
     // Ensure primary seller collections are present
     if (!names.includes("products_anvreeality")) names.push("products_anvreeality");
+    if (!names.includes("products_montera_tiles")) names.push("products_montera_tiles");
     if (!names.includes("products_ayurmor")) names.push("products_ayurmor");
     if (!names.includes("products_ayurmor_more")) names.push("products_ayurmor_more");
     if (!names.includes("products_pureplush")) names.push("products_pureplush");
@@ -114,7 +127,7 @@ export async function getAllSellerProductCollectionNames(): Promise<string[]> {
     return Array.from(new Set(names));
   } catch (err: any) {
     console.error("Error listing seller product collections:", err.message);
-    return ["products_anvreeality", "products_ayurmor", "products_ayurmor_more", "products_pureplush", "products"];
+    return ["products_anvreeality", "products_montera_tiles", "products_ayurmor", "products_ayurmor_more", "products_pureplush", "products"];
   }
 }
 

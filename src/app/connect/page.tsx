@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
@@ -23,11 +23,39 @@ import {
   importScrapedFaqsAction, 
   importScrapedCompanyProfileAction 
 } from "@/lib/portfolio-actions";
+import { getCurrentUserSession, setActiveSellerSessionAction } from "@/lib/auth-actions";
+import { cleanSellerSlug } from "@/lib/mongodb";
 
 function ConnectWebsiteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "pdf" ? "pdf" : "single";
+
+  // Active Seller Context State
+  const [session, setSession] = useState<any>(null);
+  const [activeSellerSlug, setActiveSellerSlug] = useState<string>("anvreeality");
+  const [activeSellerName, setActiveSellerName] = useState<string>("ANV REEALTY");
+  const [pdfTargetSellerSlug, setPdfTargetSellerSlug] = useState<string>("");
+  const [importedSellerSlug, setImportedSellerSlug] = useState<string | null>(null);
+  const [importedStoreName, setImportedStoreName] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCurrentUserSession().then(s => {
+      if (s) {
+        setSession(s);
+        if (s.slug && s.slug !== "seller-store") setActiveSellerSlug(s.slug);
+        if (s.storeName || s.name) setActiveSellerName(s.storeName || s.name);
+      }
+    }).catch(() => {});
+
+    const querySeller = searchParams.get("seller") || searchParams.get("sellerSlug");
+    if (querySeller && querySeller !== "seller-store") {
+      setActiveSellerSlug(querySeller);
+      if (querySeller.includes("anv")) setActiveSellerName("ANV REEALTY");
+      else if (querySeller.includes("montera")) setActiveSellerName("Montera Tiles");
+      else setActiveSellerName(querySeller.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
+    }
+  }, [searchParams]);
 
   // Mode Selection: "single" for 1-click product URL import, "full" for whole website crawl, "pdf" for PDF file upload
   const [scrapeMode, setScrapeMode] = useState<"single" | "full" | "pdf">(initialTab);
@@ -112,6 +140,7 @@ function ConnectWebsiteContent() {
         const formData = new FormData();
         formData.append("file", pdfFile);
         formData.append("mode", pdfMode);
+        formData.append("sellerSlug", activeSellerSlug);
         formData.append("autoImport", "false");
         res = await fetch("/api/scrape-pdf", {
           method: "POST",
@@ -123,6 +152,7 @@ function ConnectWebsiteContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             fileUrl: pdfUrl.trim(),
+            sellerSlug: activeSellerSlug,
             mode: pdfMode,
             autoImport: false
           })
@@ -145,6 +175,12 @@ function ConnectWebsiteContent() {
         if (data.products && data.products.length > 0) {
           setPdfSelectedIndices(data.products.map((_: any, i: number) => i));
         }
+        if (data.company?.name) {
+          const extractedSlug = cleanSellerSlug(data.company.name);
+          setPdfTargetSellerSlug(extractedSlug);
+        } else {
+          setPdfTargetSellerSlug(activeSellerSlug);
+        }
       } else {
         alert("Extraction failed: " + (data.error || "Unable to parse PDF"));
       }
@@ -166,10 +202,15 @@ function ConnectWebsiteContent() {
     setIsBatchImportingPdf(true);
     setPdfSuccessMessage(null);
 
+    const targetSlug = pdfTargetSellerSlug || activeSellerSlug;
+    const storeName = pdfResult?.company?.name || (targetSlug.includes("anv") ? "ANV REEALTY" : targetSlug.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
+
     try {
       const formattedItems = itemsToImport.map((item: any) => ({
         title: item.title,
-        brand: item.brand || pdfResult?.company?.name || "TrueDeal Verified",
+        brand: item.brand || pdfResult?.company?.name || storeName,
+        sellerSlug: targetSlug,
+        portfolioSlug: targetSlug,
         sku: item.sku || `PDF-${Math.floor(1000 + Math.random() * 9000)}`,
         description: item.description || item.title,
         shortDesc: item.description || item.title,
@@ -184,15 +225,21 @@ function ConnectWebsiteContent() {
         aiKeywords: item.aiKeywords || [item.title]
       }));
 
-      const res = await importBatchScrapedProductsAction(formattedItems);
-      if (res.success) {
-        setPdfImportedIndices(prev => Array.from(new Set([...prev, ...pdfSelectedIndices])));
-        setPdfSuccessMessage(`Successfully imported ${itemsToImport.length} items from PDF into your store catalog!`);
-      } else {
-        setPdfSuccessMessage(`Imported ${itemsToImport.length} items into your store catalog!`);
-      }
+      const res = await importBatchScrapedProductsAction(formattedItems, targetSlug);
+      const finalSlug = res.sellerSlug || targetSlug;
+
+      // Update active session cookie so navigating back lands on this exact merchant
+      await setActiveSellerSessionAction(finalSlug);
+
+      setActiveSellerSlug(finalSlug);
+      setActiveSellerName(storeName);
+      setImportedSellerSlug(finalSlug);
+      setImportedStoreName(storeName);
+
+      setPdfImportedIndices(prev => Array.from(new Set([...prev, ...pdfSelectedIndices])));
+      setPdfSuccessMessage(`Successfully imported ${itemsToImport.length} items from PDF into ${storeName}'s catalog!`);
     } catch (err: any) {
-      setPdfSuccessMessage("Items imported into catalog.");
+      setPdfSuccessMessage(`Items imported into ${storeName}'s catalog.`);
     } finally {
       setIsBatchImportingPdf(false);
     }
@@ -775,25 +822,28 @@ function ConnectWebsiteContent() {
       {/* Top Header */}
       <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sm:px-6 lg:px-10 flex-shrink-0 z-10 shadow-xs w-full">
         <div className="flex items-center gap-4 sm:gap-12 min-w-0">
-          <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+          <Link href={`/dashboard?seller=${activeSellerSlug}`} className="flex items-center gap-2.5 min-w-0">
             <h2 className="text-base sm:text-[19px] font-bold text-gray-900 hover:text-indigo-600 transition-colors truncate">
               Marketplace Dashboard
             </h2>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 truncate max-w-[170px]">
+              {activeSellerName}
+            </span>
           </Link>
           
           <nav className="hidden lg:flex items-center gap-8 text-[13px] font-semibold text-gray-500 mt-0.5">
-            <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Overview</Link>
-            <Link href="/dashboard/catalog" className="hover:text-gray-900 transition-colors">Catalog</Link>
-            <Link href="/dashboard/portfolio" className="hover:text-gray-900 transition-colors">Portfolio</Link>
+            <Link href={`/dashboard?seller=${activeSellerSlug}`} className="hover:text-gray-900 transition-colors">Overview</Link>
+            <Link href={`/dashboard/catalog?seller=${activeSellerSlug}`} className="hover:text-gray-900 transition-colors">Catalog</Link>
+            <Link href={`/dashboard/portfolio?seller=${activeSellerSlug}`} className="hover:text-gray-900 transition-colors">Portfolio</Link>
             <div className="relative">
-              <Link href="/connect" className="text-[#3B28CC] font-bold transition-colors">Import & Scrape</Link>
+              <Link href={`/connect?seller=${activeSellerSlug}`} className="text-[#3B28CC] font-bold transition-colors">Import & Scrape</Link>
               <div className="absolute -bottom-[21px] left-0 right-0 h-[3px] bg-[#3B28CC] rounded-t-full"></div>
             </div>
           </nav>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-          <Link href="/dashboard/catalog/add">
+          <Link href={`/dashboard/catalog/add?seller=${activeSellerSlug}`}>
             <Button className="bg-[#3B28CC] hover:bg-[#2c1d99] text-white rounded-xl px-3 sm:px-4 h-9 font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden xs:inline sm:inline">Create Listing</span>
@@ -2687,16 +2737,28 @@ function ConnectWebsiteContent() {
 
             {/* Success Message Banner */}
             {pdfSuccessMessage && (
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 animate-in fade-in">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{pdfSuccessMessage}</span>
+              <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span className="text-xs sm:text-[13px]">{pdfSuccessMessage}</span>
                 </div>
-                <Link href="/dashboard/catalog" className="w-full sm:w-auto">
-                  <Button size="sm" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-8 px-3 cursor-pointer justify-center">
-                    View Catalog →
-                  </Button>
-                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href={`/dashboard/catalog?seller=${importedSellerSlug || activeSellerSlug}`}>
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-8 px-3 cursor-pointer">
+                      View {importedStoreName || activeSellerName} Catalog →
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard?seller=${importedSellerSlug || activeSellerSlug}`}>
+                    <Button size="sm" variant="outline" className="bg-white hover:bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-xs rounded-xl h-8 px-3 cursor-pointer">
+                      Open Dashboard
+                    </Button>
+                  </Link>
+                  <Link href={`/portfolio/${importedSellerSlug || activeSellerSlug}`} target="_blank">
+                    <Button size="sm" variant="outline" className="bg-white hover:bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-xs rounded-xl h-8 px-3 cursor-pointer">
+                      Storefront ↗
+                    </Button>
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -2707,21 +2769,37 @@ function ConnectWebsiteContent() {
                 {/* Company Card if found */}
                 {pdfResult.company && pdfResult.company.name && (
                   <div className="bg-gradient-to-r from-purple-500/5 to-indigo-500/5 border border-purple-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 sm:gap-3.5">
+                    <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black text-base sm:text-lg shadow-sm shrink-0">
                         {pdfResult.company.name.charAt(0)}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm sm:text-base font-extrabold text-gray-900">{pdfResult.company.name}</h3>
+                          <h3 className="text-sm sm:text-base font-extrabold text-gray-900 truncate">{pdfResult.company.name}</h3>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-extrabold">
                             Extracted Entity
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 font-medium mt-0.5">
+                        <p className="text-xs text-gray-500 font-medium mt-0.5 truncate max-w-xl">
                           {[pdfResult.company.phone, pdfResult.company.email, pdfResult.company.address].filter(Boolean).join(" • ")}
                         </p>
                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start md:self-center bg-white px-3 py-2 rounded-xl border border-purple-200/70 shadow-2xs">
+                      <span className="text-[11px] font-bold text-gray-600 whitespace-nowrap">Save into:</span>
+                      <select
+                        value={pdfTargetSellerSlug || activeSellerSlug}
+                        onChange={(e) => setPdfTargetSellerSlug(e.target.value)}
+                        className="text-xs font-black text-purple-900 bg-transparent border-none outline-none cursor-pointer"
+                      >
+                        <option value={cleanSellerSlug(pdfResult.company.name)}>
+                          ✨ New Merchant Store: {pdfResult.company.name}
+                        </option>
+                        <option value={activeSellerSlug}>
+                          🏢 Current Store: {activeSellerName}
+                        </option>
+                      </select>
                     </div>
                   </div>
                 )}

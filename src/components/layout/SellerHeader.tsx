@@ -35,15 +35,16 @@ export default function SellerHeader({
     });
   }, []);
 
-  const storeDisplayName = session?.storeName || session?.name || "Seller Store";
+  const isAnv = !session || session?.slug === "anv-reealty" || session?.slug === "anvreeality" || session?.email === "contact@anvreealty.com" || session?.storeName?.includes("ANV");
+  const storeDisplayName = session?.storeName || session?.name || (isAnv ? "ANV REEALTY" : "ANV REEALTY");
   const initials = storeDisplayName
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
     .map(w => w[0]?.toUpperCase() || "")
-    .join("") || "SP";
-  const sellerEmail = session?.email || "seller@company.com";
-  const portfolioSlug = session?.slug || "seller-store";
+    .join("") || "AR";
+  const sellerEmail = session?.email || "contact@anvreealty.com";
+  const portfolioSlug = session?.slug || "anvreeality";
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -294,7 +295,7 @@ export default function SellerHeader({
                 </Link>
 
                 <Link
-                  href="/connect"
+                  href={`/connect?seller=${portfolioSlug}`}
                   onClick={() => setCreateOpen(false)}
                   className="p-3 rounded-xl hover:bg-purple-50/70 transition-colors flex items-center gap-3 group"
                 >

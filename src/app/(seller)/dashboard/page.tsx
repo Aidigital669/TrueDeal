@@ -10,10 +10,14 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ seller?: string; sellerSlug?: string }>;
+}) {
   let session = null;
-  let companyName = "My Store";
-  let tagline = "Verified Products & Services on TrueDeal";
+  let companyName = "ANV REEALTY";
+  let tagline = "Verified Real Estate & Architecture Partner";
   let websiteConnected = false;
   let websiteUrl = "";
   let totalProducts = 0;
@@ -22,30 +26,47 @@ export default async function DashboardPage() {
   let catalogHealth = 100;
   let warnings = 0;
   let topOfferings: any[] = [];
+  let sellerSlug = "anvreeality";
   let portfolio: any = null;
   let seller: any = null;
 
   try {
+    const resolvedSearchParams = searchParams ? await searchParams : {};
+    const querySeller = resolvedSearchParams.seller || resolvedSearchParams.sellerSlug;
+
     const db = await getDb();
     session = await getCurrentUserSession();
 
-    const isAnv = session?.slug === "anv-reealty" || session?.slug === "anvreeality" || session?.email === "contact@anvreealty.com" || session?.storeName?.includes("ANV");
-    const isAyurmor = session?.slug === "ayurmor-more" || session?.email?.includes("ayurmor") || session?.storeName?.includes("Ayurmor");
-    const sellerSlug = session?.slug || (isAnv ? "anvreeality" : isAyurmor ? "ayurmor-more" : "seller-store");
+    let targetSlug = querySeller || session?.slug;
+    if (!targetSlug || targetSlug === "seller-store" || targetSlug === "default") {
+      targetSlug = "anvreeality";
+    }
 
-    // 1. Get Portfolio / Seller details based on logged-in user
-    if (session?.userId) {
+    const isAnv = targetSlug.includes("anv") || session?.email === "contact@anvreealty.com" || session?.storeName?.includes("ANV");
+    const isAyurmor = targetSlug.includes("ayurmor") || targetSlug.includes("saish");
+    const isMontera = targetSlug.includes("montera");
+
+    sellerSlug = isAnv ? "anvreeality" : isAyurmor ? "ayurmor-more" : isMontera ? "montera-tiles" : targetSlug;
+
+    // 1. Get Portfolio / Seller details based on resolved seller
+    const orSlugConditions = [
+      { slug: sellerSlug },
+      ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : []),
+      ...(isMontera ? [{ slug: "montera-tiles" }] : [])
+    ];
+
+    if (session?.userId && !querySeller) {
       try {
         portfolio = await db.collection("portfolios").findOne({ 
-          $or: [{ userId: new ObjectId(session.userId) }, { slug: sellerSlug }] 
+          $or: [{ userId: new ObjectId(session.userId) }, ...orSlugConditions] 
         });
         seller = await db.collection("sellers").findOne({ 
-          $or: [{ userId: new ObjectId(session.userId) }, { slug: sellerSlug }] 
+          $or: [{ userId: new ObjectId(session.userId) }, ...orSlugConditions] 
         });
       } catch {}
     } else {
-      portfolio = await db.collection("portfolios").findOne({ slug: sellerSlug });
-      seller = await db.collection("sellers").findOne({ slug: sellerSlug });
+      portfolio = await db.collection("portfolios").findOne({ $or: orSlugConditions });
+      seller = await db.collection("sellers").findOne({ $or: orSlugConditions });
     }
 
     if (portfolio?.companyName) {
@@ -57,6 +78,12 @@ export default async function DashboardPage() {
       companyName = seller.storeName;
       websiteUrl = seller.website || websiteUrl;
       websiteConnected = Boolean(seller.website);
+    } else if (isAnv) {
+      companyName = "ANV REEALTY";
+      tagline = "Verified Real Estate & Architecture Partner";
+    } else if (isMontera) {
+      companyName = "Montera Tiles";
+      tagline = "Premium Stone & Surface Finishes";
     } else if (session?.storeName) {
       companyName = session.storeName;
     }
@@ -113,7 +140,7 @@ export default async function DashboardPage() {
   const hour = new Date().getHours();
   const greetingTime = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const viewsCount = totalProducts > 0 ? (totalProducts * 18 + 24).toLocaleString() : "0";
-  const liveStoreSlug = portfolio?.slug || session?.slug || seller?.slug || (companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")) || "seller-store";
+  const liveStoreSlug = portfolio?.slug || seller?.slug || session?.slug || sellerSlug || "anvreeality";
 
   return (
     <div className="flex flex-col gap-8 w-full pb-10 font-sans">
@@ -134,7 +161,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <Link 
-          href="/connect" 
+          href={`/connect?seller=${sellerSlug}`} 
           className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-purple-200"
         >
           <div className="relative flex h-2.5 w-2.5">
@@ -232,10 +259,10 @@ export default async function DashboardPage() {
         <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all flex flex-col">
           <h3 className="text-lg font-extrabold text-gray-900 mb-4">Quick Actions</h3>
           <div className="flex flex-col gap-2">
-            <ActionItem icon={<Plus className="w-4 h-4 text-blue-600" />} bg="bg-blue-50" label="Add New Product / Listing" href="/dashboard/catalog/add" />
-            <ActionItem icon={<Globe className="w-4 h-4 text-purple-600" />} bg="bg-purple-50" label="Re-Crawl / Sync Website Data" href="/connect" />
-            <ActionItem icon={<FolderPlus className="w-4 h-4 text-emerald-600" />} bg="bg-emerald-50" label="Customize Company Portfolio" href="/dashboard/portfolio" />
-            <ActionItem icon={<Store className="w-4 h-4 text-amber-600" />} bg="bg-amber-50" label="Edit Store Profile & GSTIN" href="/dashboard/business" />
+            <ActionItem icon={<Plus className="w-4 h-4 text-blue-600" />} bg="bg-blue-50" label="Add New Product / Listing" href={`/dashboard/catalog/add?seller=${sellerSlug}`} />
+            <ActionItem icon={<Globe className="w-4 h-4 text-purple-600" />} bg="bg-purple-50" label="Re-Crawl / Sync Website Data" href={`/connect?seller=${sellerSlug}`} />
+            <ActionItem icon={<FolderPlus className="w-4 h-4 text-emerald-600" />} bg="bg-emerald-50" label="Customize Company Portfolio" href={`/dashboard/portfolio?seller=${sellerSlug}`} />
+            <ActionItem icon={<Store className="w-4 h-4 text-amber-600" />} bg="bg-amber-50" label="Edit Store Profile & GSTIN" href={`/dashboard/business?seller=${sellerSlug}`} />
           </div>
         </div>
       </div>
@@ -247,7 +274,7 @@ export default async function DashboardPage() {
             <h3 className="text-lg font-extrabold text-gray-900">Live Inventory & AI Search Performance</h3>
             <p className="text-xs text-gray-500 font-medium mt-0.5">Real listings from {companyName} stored in your database</p>
           </div>
-          <Link href="/dashboard/catalog" className="text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1">
+          <Link href={`/dashboard/catalog?seller=${sellerSlug}`} className="text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors flex items-center gap-1">
             View All ({totalProducts}) <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -290,7 +317,7 @@ export default async function DashboardPage() {
               ) : (
                 <tr>
                   <td colSpan={4} className="py-8 text-center text-gray-500 font-medium">
-                    No products found in database. <Link href="/connect" className="text-purple-600 underline font-bold">Crawl your website</Link> to import listings.
+                    No products found in database. <Link href={`/connect?seller=${sellerSlug}`} className="text-purple-600 underline font-bold">Crawl your website</Link> to import listings.
                   </td>
                 </tr>
               )}
