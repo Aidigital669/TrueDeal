@@ -12,6 +12,7 @@
     "@auth/mongodb-adapter": "^3.11.3",
     "@auth/prisma-adapter": "^2.11.3",
     "@base-ui/react": "^1.7.0",
+    "@napi-rs/canvas": "^0.1.65",
     "@types/pdf-parse": "^1.1.5",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",

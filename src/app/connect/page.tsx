@@ -206,24 +206,34 @@ function ConnectWebsiteContent() {
     const storeName = pdfResult?.company?.name || (targetSlug.includes("anv") ? "ANV REEALTY" : targetSlug.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
 
     try {
-      const formattedItems = itemsToImport.map((item: any) => ({
-        title: item.title,
-        brand: item.brand || pdfResult?.company?.name || storeName,
-        sellerSlug: targetSlug,
-        portfolioSlug: targetSlug,
-        sku: item.sku || `PDF-${Math.floor(1000 + Math.random() * 9000)}`,
-        description: item.description || item.title,
-        shortDesc: item.description || item.title,
-        price: item.price || 0,
-        originalPrice: item.originalPrice || item.price || 0,
-        discount: item.discount,
-        category: item.category || "General",
-        inventory: item.inventory || 25,
-        images: item.images && item.images.length > 0 ? item.images : (item.primaryImage ? [item.primaryImage] : []),
-        primaryImage: item.primaryImage || item.dataUrl || item.images?.[0],
-        specs: item.specs || [],
-        aiKeywords: item.aiKeywords || [item.title]
-      }));
+      const formattedItems = itemsToImport.map((item: any) => {
+        // Prefer dataUrl (the authentic base64 photo rendered in preview) or primaryImage
+        const imageSource = item.dataUrl || item.primaryImage || item.images?.[0] || "";
+        const allImagesList = (item.images && item.images.length > 0)
+          ? item.images
+          : (imageSource ? [imageSource] : []);
+
+        return {
+          title: item.title,
+          brand: item.brand || pdfResult?.company?.name || storeName,
+          sellerSlug: targetSlug,
+          portfolioSlug: targetSlug,
+          sku: item.sku || `PDF-${Math.floor(1000 + Math.random() * 9000)}`,
+          description: item.description || item.title,
+          shortDesc: item.description || item.title,
+          price: item.price || 0,
+          originalPrice: item.originalPrice || item.price || 0,
+          discount: item.discount,
+          category: item.category || "General",
+          inventory: item.inventory || 25,
+          image: imageSource,
+          primaryImage: imageSource,
+          dataUrl: item.dataUrl || (imageSource.startsWith("data:image/") ? imageSource : undefined),
+          images: allImagesList,
+          specs: item.specs || [],
+          aiKeywords: item.aiKeywords || [item.title]
+        };
+      });
 
       const res = await importBatchScrapedProductsAction(formattedItems, targetSlug);
       const finalSlug = res.sellerSlug || targetSlug;

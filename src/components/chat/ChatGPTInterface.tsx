@@ -1338,7 +1338,20 @@ export function ChatGPTInterface({
                                               alt={item.title}
                                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                               onError={e => {
-                                                (e.target as HTMLElement).style.display = "none";
+                                                const target = e.target as HTMLImageElement;
+                                                if (!target.dataset.hasFallback) {
+                                                  target.dataset.hasFallback = "true";
+                                                  const lower = `${item.category || ""} ${item.title || ""}`.toLowerCase();
+                                                  if (lower.includes("tile") || lower.includes("stone") || lower.includes("marble") || lower.includes("floor") || lower.includes("montera")) {
+                                                    target.src = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&q=80";
+                                                  } else if (lower.includes("commercial") || lower.includes("property") || lower.includes("office") || lower.includes("real estate")) {
+                                                    target.src = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&q=80";
+                                                  } else {
+                                                    target.src = "https://images.unsplash.com/photo-1557821552-17105176677c?w=400&q=80";
+                                                  }
+                                                } else {
+                                                  (e.target as HTMLElement).style.display = "none";
+                                                }
                                               }}
                                             />
                                           </div>

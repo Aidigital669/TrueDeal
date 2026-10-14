@@ -3,6 +3,8 @@
 import clientPromise, { getDb, getSellerProductsCollection, getSellerProductCollectionName, cleanSellerSlug } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
+import fs from "fs";
+import path from "path";
 import { getCurrentUserSession } from "@/lib/auth-actions";
 import { getCategoryFallbackImage } from "@/lib/image-extractor";
 import { enhanceScrapedProductsBatchWithPython } from "@/lib/python-image-enhancer";
@@ -555,6 +557,8 @@ export async function importScrapedProductAction(
     inventory?: number;
     images?: string[];
     primaryImage?: string;
+    image?: string;
+    dataUrl?: string;
     specs?: { key: string; value: string }[];
     aiKeywords?: string[];
     aiVisibility?: number;
@@ -590,15 +594,43 @@ export async function importScrapedProductAction(
     const sellerKey = sellerSlug;
     const brandName = resolveDynamicBrand(session?.storeName, activeProductData.brand, sellerSlug);
 
-    const primaryImg = (activeProductData.primaryImage && activeProductData.primaryImage.trim().length > 0 && !activeProductData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
-      ? activeProductData.primaryImage
-      : ((activeProductData.images && activeProductData.images.length > 0 && activeProductData.images[0])
-        ? activeProductData.images[0]
-        : getCategoryFallbackImage(activeProductData.category || "", activeProductData.title));
+    // Image Resolution: prioritize valid base64 dataUrl, primaryImage, image, or category fallback
+    let candidateImg = activeProductData.dataUrl && activeProductData.dataUrl.startsWith("data:image/")
+      ? activeProductData.dataUrl
+      : (activeProductData.primaryImage && activeProductData.primaryImage.trim().length > 0 && !activeProductData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
+        ? activeProductData.primaryImage
+        : (activeProductData.image && activeProductData.image.trim().length > 0)
+          ? activeProductData.image
+          : ((activeProductData.images && activeProductData.images.length > 0 && activeProductData.images[0])
+            ? activeProductData.images[0]
+            : getCategoryFallbackImage(activeProductData.category || "", activeProductData.title));
 
+    // Try to persist base64 image data to disk on current server if available
+    let diskUrl = "";
+    if (candidateImg.startsWith("data:image/")) {
+      try {
+        const dir = path.join(process.cwd(), "public", "uploads", "pdf-extracts");
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const b64 = candidateImg.split(",")[1];
+        if (b64) {
+          const buf = Buffer.from(b64, "base64");
+          const uniqueFile = `pdf_${sellerSlug}_${Date.now()}_${Math.floor(Math.random() * 1000)}.png`;
+          fs.writeFileSync(path.join(dir, uniqueFile), buf);
+          diskUrl = `/uploads/pdf-extracts/${uniqueFile}`;
+        }
+      } catch (writeErr) {
+        console.warn("Failed saving base64 to disk:", writeErr);
+      }
+    }
+
+    const primaryImg = diskUrl || candidateImg;
     const allImages = (activeProductData.images && activeProductData.images.length > 0 && activeProductData.images.some(Boolean))
       ? activeProductData.images.filter(Boolean).map((url, i) => ({ url, isPrimary: i === 0 }))
       : [{ url: primaryImg, isPrimary: true }];
+
+    if (diskUrl && candidateImg.startsWith("data:image/")) {
+      allImages.push({ url: candidateImg, isPrimary: false });
+    }
 
     const inventoryCount = typeof activeProductData.inventory === "number" ? activeProductData.inventory : 20;
     const aiVis = activeProductData.aiVisibility || 95;
@@ -635,6 +667,9 @@ export async function importScrapedProductAction(
       attention: inventoryCount <= 0,
       sparkles: aiVis >= 90,
       isActive: true,
+      image: primaryImg,
+      primaryImage: primaryImg,
+      dataUrl: activeProductData.dataUrl || (candidateImg.startsWith("data:image/") ? candidateImg : undefined),
       images: allImages,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -705,6 +740,8 @@ export async function importBatchScrapedProductsAction(
     inventory?: number;
     images?: string[];
     primaryImage?: string;
+    image?: string;
+    dataUrl?: string;
     specs?: { key: string; value: string }[];
     aiKeywords?: string[];
     aiVisibility?: number;
@@ -746,16 +783,47 @@ export async function importBatchScrapedProductsAction(
     const sellerKey = sellerSlug;
     const defaultBrand = resolveDynamicBrand(session?.storeName, firstItem?.brand, sellerSlug);
 
-    const docsToInsert = effectiveProductsList.map((productData, index) => {
-      const primaryImg = (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
-        ? productData.primaryImage
-        : ((productData.images && productData.images.length > 0 && productData.images[0])
-          ? productData.images[0]
-          : getCategoryFallbackImage(productData.category || "", productData.title));
+    const uploadsDir = path.join(process.cwd(), "public", "uploads", "pdf-extracts");
+    try {
+      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    } catch {}
 
+    const docsToInsert = effectiveProductsList.map((productData, index) => {
+      // Prioritize valid base64 dataUrl, primaryImage, image, or category fallback
+      let candidateImg = productData.dataUrl && productData.dataUrl.startsWith("data:image/")
+        ? productData.dataUrl
+        : (productData.primaryImage && productData.primaryImage.trim().length > 0 && !productData.primaryImage.includes("photo-1517336714731-489689fd1ca8"))
+          ? productData.primaryImage
+          : (productData.image && productData.image.trim().length > 0)
+            ? productData.image
+            : ((productData.images && productData.images.length > 0 && productData.images[0])
+              ? productData.images[0]
+              : getCategoryFallbackImage(productData.category || "", productData.title));
+
+      // Try to persist base64 image data to disk on current server if available
+      let diskUrl = "";
+      if (candidateImg.startsWith("data:image/")) {
+        try {
+          const b64 = candidateImg.split(",")[1];
+          if (b64) {
+            const buf = Buffer.from(b64, "base64");
+            const uniqueFile = `pdf_${sellerSlug}_p${index + 1}_${Date.now()}_${Math.floor(Math.random() * 1000)}.png`;
+            fs.writeFileSync(path.join(uploadsDir, uniqueFile), buf);
+            diskUrl = `/uploads/pdf-extracts/${uniqueFile}`;
+          }
+        } catch (writeErr) {
+          console.warn("Failed saving batch item base64 to disk:", writeErr);
+        }
+      }
+
+      const primaryImg = diskUrl || candidateImg;
       const allImages = (productData.images && productData.images.length > 0 && productData.images.some(Boolean))
         ? productData.images.filter(Boolean).map((url, i) => ({ url, isPrimary: i === 0 }))
         : [{ url: primaryImg, isPrimary: true }];
+
+      if (diskUrl && candidateImg.startsWith("data:image/")) {
+        allImages.push({ url: candidateImg, isPrimary: false });
+      }
 
       const inventoryCount = typeof productData.inventory === "number" ? productData.inventory : 20;
       const aiVis = productData.aiVisibility || 95;
@@ -795,6 +863,9 @@ export async function importBatchScrapedProductsAction(
         attention: inventoryCount <= 0,
         sparkles: aiVis >= 90,
         isActive: true,
+        image: primaryImg,
+        primaryImage: primaryImg,
+        dataUrl: productData.dataUrl || (candidateImg.startsWith("data:image/") ? candidateImg : undefined),
         images: allImages,
         createdAt: new Date(),
         updatedAt: new Date()

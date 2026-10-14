@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise, { getDb, getAllSellerProductCollectionNames } from "@/lib/mongodb";
 import { parseSearchIntentWithGemini, generateGeminiSearchResponse, generateGeminiConversationalAnswer } from "@/lib/gemini";
 import { recordSearchQuery } from "@/lib/telemetry";
+import { getCategoryFallbackImage } from "@/lib/image-extractor";
 
 export interface SearchListingItem {
   id: string;
@@ -528,7 +529,12 @@ export async function POST(req: Request) {
     });
 
     const rawListings: SearchListingItem[] = uniqueDbProducts.map((p, pIdx) => {
-      const primaryImg = p.images?.find((img: any) => img.isPrimary)?.url || p.images?.[0]?.url || p.image || "https://images.unsplash.com/photo-1557821552-17105176677c?w=600&q=80";
+      const primaryImg = p.dataUrl || 
+        p.image || 
+        p.primaryImage || 
+        p.images?.find((img: any) => img.isPrimary)?.url || 
+        p.images?.[0]?.url || 
+        getCategoryFallbackImage(p.category || "", p.title || p.name || "");
       const sellerSlug = p.sellerSlug || p.portfolioSlug || "seller";
       const companyName = p.brand || matchedCompanyProfile?.name || "Verified Seller";
       const city = p.city || "";

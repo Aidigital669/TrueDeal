@@ -1160,13 +1160,13 @@ Return strictly valid JSON:
             : [category.toLowerCase(), "catalog", "verified", "truedeal"],
           inStock: item.inStock !== false,
           inventory: typeof item.inventory === "number" ? item.inventory : 25,
-          primaryImage: assignedImage,
+          primaryImage: assignedDataUrl || assignedImage || fallbackImg,
           dataUrl: assignedDataUrl || undefined,
-          images: productImages.length > 0 ? productImages : [assignedImage],
+          images: productImages.length > 0 ? (assignedDataUrl && !productImages.includes(assignedDataUrl) ? [assignedDataUrl, ...productImages] : productImages) : [assignedDataUrl || assignedImage || fallbackImg],
           pageNumber: pageNum,
           imageLocation: item.imageLocation,
           imageDescription: item.imageDescription,
-          hasImageInPdf: !!assignedImage,
+          hasImageInPdf: !!(assignedDataUrl || assignedImage),
           importedToDb: false
         };
       })
@@ -1196,8 +1196,12 @@ Return strictly valid JSON:
             sku: product.sku,
             specs: product.specs,
             aiKeywords: product.aiKeywords,
+            image: product.primaryImage,
             primaryImage: product.primaryImage,
-            images: product.images || [{ url: product.primaryImage, isPrimary: true }],
+            dataUrl: product.dataUrl,
+            images: Array.isArray(product.images)
+              ? product.images.map((img: any, i: number) => typeof img === "string" ? { url: img, isPrimary: i === 0 } : img)
+              : [{ url: product.primaryImage, isPrimary: true }],
             inventory: product.inventory,
             inStock: product.inStock,
             sellerSlug,
