@@ -196,18 +196,7 @@ function cleanAiSummaryText(text: string, listings: any[]): string {
   return cleaned;
 }
 
-let hasSeededCatalog = false;
-async function ensureMarketplaceCatalogSeeded(db: any) {
-  if (hasSeededCatalog) return;
-  try {
-    const ayurmorCount = await db.collection("products_ayurmor").countDocuments();
-    if (ayurmorCount === 0) {
-      const { ensureSeedProductsInDatabase } = await import("@/lib/seed-catalog");
-      await ensureSeedProductsInDatabase();
-    }
-    hasSeededCatalog = true;
-  } catch {}
-}
+
 
 export async function POST(req: Request) {
   let query = "";
@@ -301,9 +290,6 @@ export async function POST(req: Request) {
       if (client) {
         const db = client.db();
         mongoConnected = true;
-
-        // Auto-seed marketplace catalog (e.g. Ayurmor products) if collection is empty
-        await ensureMarketplaceCatalogSeeded(db);
 
         // 2a. Query products across all seller collections in Truedeal DB
         const escapedTokens = finalTokens.map(escapeRegex);
@@ -406,6 +392,17 @@ export async function POST(req: Request) {
             const pCategory = (p.category || "").toLowerCase();
             const pText = `${pTitle} ${pCategory} ${pBrand} ${p.shortDesc} ${(p.aiKeywords || []).join(" ")}`.toLowerCase();
             
+            // Require user search tokens to match when user provided explicit keywords (prevents broad synonym bleed e.g. "hardware" matching PC when searching "tiles")
+            const userTokens = searchTokens.length > 0 ? searchTokens : fallbackTokens;
+            if (userTokens.length > 0) {
+              const matchesUserToken = userTokens.some(token => 
+                pTitle.includes(token) || pBrand.includes(token) || pCategory.includes(token) || pText.includes(token)
+              );
+              if (!matchesUserToken) {
+                return { doc: p, score: 0 };
+              }
+            }
+
             for (const token of finalTokens) {
               if (pTitle.includes(token)) score += 30;
               if (pBrand.includes(token)) score += 20;

@@ -7,7 +7,6 @@ import clientPromise, {
   cleanSellerSlug 
 } from "./mongodb";
 import { ObjectId } from "mongodb";
-import { SEED_PRODUCTS } from "./seed-catalog";
 import { createRazorpayOrder } from "./razorpay";
 import { revalidatePath } from "next/cache";
 
@@ -184,20 +183,6 @@ export async function getPublicProductDetails(
       } catch {}
     }
 
-    // 4. Fallback search against SEED_PRODUCTS
-    if (!matchedDoc) {
-      const normalizedQuery = rawId.toLowerCase();
-      const seedMatch = SEED_PRODUCTS.find((p: any, idx: number) => {
-        const idMatches = p.sku === rawId || `seed-${idx}` === rawId || (p as any).id === rawId;
-        const titleMatches = p.title.toLowerCase() === normalizedQuery || p.title.toLowerCase().includes(normalizedQuery);
-        return idMatches || titleMatches;
-      });
-
-      if (seedMatch) {
-        matchedDoc = { ...seedMatch, _id: rawId };
-      }
-    }
-
     if (!matchedDoc) {
       return { success: false, error: "Product not found in marketplace catalog." };
     }
@@ -351,12 +336,7 @@ export async function getPublicProductDetails(
       }
     } catch {}
 
-    // Fallback related from seed
-    if (relatedDocs.length === 0) {
-      relatedDocs = SEED_PRODUCTS
-        .filter((p: any) => p.title !== matchedDoc.title)
-        .slice(0, 4);
-    }
+    // No fallback from dummy seed data
 
     const relatedProducts = relatedDocs.map((r: any, rIdx: number) => {
       const rPrice = typeof r.price === "number" ? r.price : (parseFloat(String(r.price).replace(/[^0-9.]/g, "")) || 0);
