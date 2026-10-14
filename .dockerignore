@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+scraper
+scratch
+test_*.ts
+test_*.mjs
+test_*.js
+wipe_atlas.cjs

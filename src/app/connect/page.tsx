@@ -555,7 +555,7 @@ function ConnectWebsiteContent() {
       const data = await res.json();
       if (data.success && data.results?.[0]?.enhancedUrl) {
         const newUrl = data.results[0].enhancedUrl;
-        setPdfResult(prev => {
+        setPdfResult((prev: any) => {
           if (!prev?.products) return prev;
           const updated = [...prev.products];
           updated[index] = {
