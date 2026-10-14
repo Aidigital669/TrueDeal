@@ -513,7 +513,6 @@ function resolveDynamicBrand(
   if (s.includes("pureplush") || s.includes("pureplus")) return "Pureplush";
   if (s.includes("ayurmor")) return "Ayurmor (Saish Technofarms)";
   if (s.includes("anv")) return "ANV REEALTY";
-  if (s.includes("montera")) return "Montera Tiles";
   return "TrueDeal Verified";
 }
 

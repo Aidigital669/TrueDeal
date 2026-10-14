@@ -553,19 +553,17 @@ export async function setActiveSellerSessionAction(sellerSlug: string) {
     const db = await getDb();
     const cleanSlug = cleanSellerSlug(sellerSlug);
     const isAnv = sellerSlug.includes("anv");
-    const isMontera = sellerSlug.includes("montera");
 
     const seller = await db.collection("sellers").findOne({
       $or: [
         { slug: sellerSlug },
         { slug: cleanSlug },
-        ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : []),
-        ...(isMontera ? [{ slug: "montera-tiles" }] : [])
+        ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : [])
       ]
     });
 
     const targetSlug = isAnv ? "anvreeality" : (seller?.slug || cleanSlug);
-    const storeName = seller?.storeName || (isAnv ? "ANV REEALTY" : isMontera ? "Montera Tiles" : targetSlug);
+    const storeName = seller?.storeName || (isAnv ? "ANV REEALTY" : targetSlug);
     const email = seller?.email || (isAnv ? "contact@anvreealty.com" : `contact@${cleanSlug}.com`);
 
     const sessionPayload: UserSession = {
@@ -939,15 +937,40 @@ export async function updateCustomerProfileAction(data: {
 }
 
 /**
- * Logout current user
+ * Logout current user and thoroughly expire all authentication and tenant session cookies
  */
 export async function logoutUserAction() {
   try {
     const cookieStore = await cookies();
-    cookieStore.delete(SESSION_COOKIE_NAME);
+    const cookiesToPurge = [
+      SESSION_COOKIE_NAME,
+      "truedeal_seller_slug",
+      "truedeal_guest_id",
+      "next-auth.session-token",
+      "__Secure-next-auth.session-token",
+      "next-auth.csrf-token",
+      "__Host-next-auth.csrf-token",
+      "next-auth.callback-url"
+    ];
+
+    for (const name of cookiesToPurge) {
+      try {
+        cookieStore.set(name, "", {
+          path: "/",
+          maxAge: 0,
+          expires: new Date(0),
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production"
+        });
+        cookieStore.delete({ name, path: "/" });
+        cookieStore.delete(name);
+      } catch {}
+    }
+
     revalidatePath("/");
     revalidatePath("/dashboard");
     revalidatePath("/account");
+    revalidatePath("/chat");
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };

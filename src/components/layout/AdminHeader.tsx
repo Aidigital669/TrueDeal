@@ -85,9 +85,21 @@ export default function AdminHeader({
   };
 
   const handleLogout = async () => {
-    await logoutUserAction();
-    router.push("/login");
-    router.refresh();
+    try {
+      if (typeof document !== "undefined") {
+        document.cookie = "truedeal_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+        document.cookie = "truedeal_seller_slug=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+        try {
+          localStorage.removeItem("truedeal_session");
+          localStorage.removeItem("truedeal_seller_slug");
+          sessionStorage.clear();
+        } catch {}
+      }
+      await logoutUserAction();
+      window.location.href = "/logout?redirect=/login";
+    } catch {
+      window.location.href = "/logout?redirect=/login";
+    }
   };
 
   return (

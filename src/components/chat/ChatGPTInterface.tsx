@@ -291,12 +291,21 @@ export function ChatGPTInterface({
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
+      if (typeof document !== "undefined") {
+        document.cookie = "truedeal_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+        document.cookie = "truedeal_seller_slug=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+        try {
+          localStorage.removeItem("truedeal_session");
+          localStorage.removeItem("truedeal_seller_slug");
+          sessionStorage.clear();
+        } catch {}
+      }
+
       await logoutUserAction();
-      router.refresh();
-      window.location.href = "/";
+      window.location.href = "/logout?redirect=/chat";
     } catch (err) {
       console.error("Logout failed:", err);
-      setIsLoggingOut(false);
+      window.location.href = "/logout?redirect=/chat";
     }
   };
 

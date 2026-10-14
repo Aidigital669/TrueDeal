@@ -52,7 +52,6 @@ function ConnectWebsiteContent() {
     if (querySeller && querySeller !== "seller-store") {
       setActiveSellerSlug(querySeller);
       if (querySeller.includes("anv")) setActiveSellerName("ANV REEALTY");
-      else if (querySeller.includes("montera")) setActiveSellerName("Montera Tiles");
       else setActiveSellerName(querySeller.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
     }
   }, [searchParams]);

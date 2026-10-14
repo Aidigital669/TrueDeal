@@ -44,15 +44,13 @@ export default async function DashboardPage({
 
     const isAnv = targetSlug.includes("anv") || session?.email === "contact@anvreealty.com" || session?.storeName?.includes("ANV");
     const isAyurmor = targetSlug.includes("ayurmor") || targetSlug.includes("saish");
-    const isMontera = targetSlug.includes("montera");
 
-    sellerSlug = isAnv ? "anvreeality" : isAyurmor ? "ayurmor-more" : isMontera ? "montera-tiles" : targetSlug;
+    sellerSlug = isAnv ? "anvreeality" : isAyurmor ? "ayurmor-more" : targetSlug;
 
     // 1. Get Portfolio / Seller details based on resolved seller
     const orSlugConditions = [
       { slug: sellerSlug },
-      ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : []),
-      ...(isMontera ? [{ slug: "montera-tiles" }] : [])
+      ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : [])
     ];
 
     if (session?.userId && !querySeller) {
@@ -81,9 +79,6 @@ export default async function DashboardPage({
     } else if (isAnv) {
       companyName = "ANV REEALTY";
       tagline = "Verified Real Estate & Architecture Partner";
-    } else if (isMontera) {
-      companyName = "Montera Tiles";
-      tagline = "Premium Stone & Surface Finishes";
     } else if (session?.storeName) {
       companyName = session.storeName;
     }

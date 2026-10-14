@@ -98,11 +98,20 @@ export default function CustomerAccountPage() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
+      if (typeof document !== "undefined") {
+        document.cookie = "truedeal_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+        document.cookie = "truedeal_seller_slug=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0;";
+        try {
+          localStorage.removeItem("truedeal_session");
+          localStorage.removeItem("truedeal_seller_slug");
+          sessionStorage.clear();
+        } catch {}
+      }
       await logoutUserAction();
-      router.push("/");
-      router.refresh();
+      window.location.href = "/logout?redirect=/";
     } catch (err) {
       console.error("Logout failed:", err);
+      window.location.href = "/logout?redirect=/";
     } finally {
       setLoggingOut(false);
     }

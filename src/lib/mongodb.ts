@@ -119,7 +119,6 @@ export async function getAllSellerProductCollectionNames(): Promise<string[]> {
     
     // Ensure primary seller collections are present
     if (!names.includes("products_anvreeality")) names.push("products_anvreeality");
-    if (!names.includes("products_montera_tiles")) names.push("products_montera_tiles");
     if (!names.includes("products_ayurmor")) names.push("products_ayurmor");
     if (!names.includes("products_ayurmor_more")) names.push("products_ayurmor_more");
     if (!names.includes("products_pureplush")) names.push("products_pureplush");
@@ -127,7 +126,7 @@ export async function getAllSellerProductCollectionNames(): Promise<string[]> {
     return Array.from(new Set(names));
   } catch (err: any) {
     console.error("Error listing seller product collections:", err.message);
-    return ["products_anvreeality", "products_montera_tiles", "products_ayurmor", "products_ayurmor_more", "products_pureplush", "products"];
+    return ["products_anvreeality", "products_ayurmor", "products_ayurmor_more", "products_pureplush", "products"];
   }
 }
 

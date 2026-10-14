@@ -130,13 +130,11 @@ export async function impersonateSellerAction(sellerSlug: string) {
     const cleanSlug = cleanSellerSlug(sellerSlug);
 
     const isAnv = sellerSlug.includes("anv");
-    const isMontera = sellerSlug.includes("montera");
     const seller = await db.collection("sellers").findOne({
       $or: [
         { slug: cleanSlug },
         { slug: sellerSlug },
-        ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : []),
-        ...(isMontera ? [{ slug: "montera-tiles" }] : [])
+        ...(isAnv ? [{ slug: "anv-reealty" }, { slug: "anvreeality" }, { slug: "anv-reality" }] : [])
       ]
     });
 
