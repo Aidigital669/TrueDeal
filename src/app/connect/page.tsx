@@ -175,12 +175,8 @@ function ConnectWebsiteContent() {
         if (data.products && data.products.length > 0) {
           setPdfSelectedIndices(data.products.map((_: any, i: number) => i));
         }
-        if (data.company?.name) {
-          const extractedSlug = cleanSellerSlug(data.company.name);
-          setPdfTargetSellerSlug(extractedSlug);
-        } else {
-          setPdfTargetSellerSlug(activeSellerSlug);
-        }
+        // Always default to active logged-in store (Anv Reality)
+        setPdfTargetSellerSlug(activeSellerSlug);
       } else {
         alert("Extraction failed: " + (data.error || "Unable to parse PDF"));
       }
@@ -202,20 +198,22 @@ function ConnectWebsiteContent() {
     setIsBatchImportingPdf(true);
     setPdfSuccessMessage(null);
 
-    const targetSlug = pdfTargetSellerSlug || activeSellerSlug;
-    const storeName = pdfResult?.company?.name || (targetSlug.includes("anv") ? "ANV REEALTY" : targetSlug.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
+    // Target store is ALWAYS the active seller's store (Anv Reality)
+    const targetSlug = activeSellerSlug || "anvreeality";
+    const storeName = activeSellerName || "ANV REEALTY";
+    const brandName = pdfResult?.company?.name || "Verified Brand";
 
     try {
       const formattedItems = itemsToImport.map((item: any) => {
-        // Prefer dataUrl (the authentic base64 photo rendered in preview) or primaryImage
-        const imageSource = item.dataUrl || item.primaryImage || item.images?.[0] || "";
+        // Keep payload ultra-lightweight (< 20KB) to prevent 413 Payload Too Large errors
+        const imageSource = item.primaryImage || item.images?.[0] || (item.dataUrl && item.dataUrl.length < 50000 ? item.dataUrl : "");
         const allImagesList = (item.images && item.images.length > 0)
           ? item.images
           : (imageSource ? [imageSource] : []);
 
         return {
           title: item.title,
-          brand: item.brand || pdfResult?.company?.name || storeName,
+          brand: item.brand || brandName,
           sellerSlug: targetSlug,
           portfolioSlug: targetSlug,
           sku: item.sku || `PDF-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -228,7 +226,6 @@ function ConnectWebsiteContent() {
           inventory: item.inventory || 25,
           image: imageSource,
           primaryImage: imageSource,
-          dataUrl: item.dataUrl || (imageSource.startsWith("data:image/") ? imageSource : undefined),
           images: allImagesList,
           specs: item.specs || [],
           aiKeywords: item.aiKeywords || [item.title]
@@ -236,14 +233,8 @@ function ConnectWebsiteContent() {
       });
 
       const res = await importBatchScrapedProductsAction(formattedItems, targetSlug);
-      const finalSlug = res.sellerSlug || targetSlug;
 
-      // Update active session cookie so navigating back lands on this exact merchant
-      await setActiveSellerSessionAction(finalSlug);
-
-      setActiveSellerSlug(finalSlug);
-      setActiveSellerName(storeName);
-      setImportedSellerSlug(finalSlug);
+      setImportedSellerSlug(targetSlug);
       setImportedStoreName(storeName);
 
       setPdfImportedIndices(prev => Array.from(new Set([...prev, ...pdfSelectedIndices])));
@@ -3014,9 +3005,13 @@ function ConnectWebsiteContent() {
                             disabled={isImported}
                             onClick={async () => {
                               try {
+                                const targetSlug = activeSellerSlug || "anvreeality";
+                                const imageSource = item.primaryImage || item.images?.[0] || (item.dataUrl && item.dataUrl.length < 50000 ? item.dataUrl : "");
                                 await importBatchScrapedProductsAction([{
                                   title: item.title,
                                   brand: item.brand || pdfResult?.company?.name || "TrueDeal Verified",
+                                  sellerSlug: targetSlug,
+                                  portfolioSlug: targetSlug,
                                   sku: item.sku || `PDF-${Math.floor(1000 + Math.random() * 9000)}`,
                                   description: item.description || item.title,
                                   shortDesc: item.description || item.title,
@@ -3025,11 +3020,12 @@ function ConnectWebsiteContent() {
                                   discount: item.discount,
                                   category: item.category || "General",
                                   inventory: item.inventory || 25,
-                                  images: item.images && item.images.length > 0 ? item.images : (item.primaryImage ? [item.primaryImage] : []),
-                                  primaryImage: item.primaryImage || item.dataUrl,
+                                  image: imageSource,
+                                  primaryImage: imageSource,
+                                  images: item.images && item.images.length > 0 ? item.images : (imageSource ? [imageSource] : []),
                                   specs: item.specs || [],
                                   aiKeywords: item.aiKeywords || [item.title]
-                                }]);
+                                }], targetSlug);
                                 setPdfImportedIndices(prev => [...prev, idx]);
                               } catch (e) {
                                 alert("Failed to import item");

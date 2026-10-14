@@ -489,33 +489,11 @@ function resolveDynamicSellerSlug(
   brand?: string,
   explicitSlug?: string
 ): string {
-  if (explicitSlug && explicitSlug !== "seller-store" && explicitSlug !== "default") {
-    return cleanSellerSlug(explicitSlug);
-  }
   if (sessionSlug && sessionSlug !== "seller-store" && sessionSlug !== "default") {
     return cleanSellerSlug(sessionSlug);
   }
-  const text = `${sourceUrl || ""} ${brand || ""}`.toLowerCase();
-  if (text.includes("pureplush") || text.includes("pureplus")) {
-    return "pureplush";
-  }
-  if (text.includes("ayurmor") || text.includes("saish")) {
-    return "ayurmor-more";
-  }
-  if (text.includes("anvreealty") || text.includes("anvrealty") || text.includes("anv")) {
-    return "anvreeality";
-  }
-  if (brand && brand !== "TrueDeal Verified" && brand !== "Website Offering" && brand.trim().length >= 3) {
-    return cleanSellerSlug(brand);
-  }
-  if (sourceUrl) {
-    try {
-      const host = new URL(sourceUrl).hostname.replace(/^www\./, "");
-      const brandPart = host.split(".")[0];
-      if (brandPart && brandPart.length >= 3) {
-        return cleanSellerSlug(brandPart);
-      }
-    } catch {}
+  if (explicitSlug && explicitSlug !== "seller-store" && explicitSlug !== "default") {
+    return cleanSellerSlug(explicitSlug);
   }
   return "anvreeality";
 }
@@ -906,47 +884,6 @@ export async function importBatchScrapedProductsAction(
     } catch (dbErr: any) {
       console.error("MongoDB Atlas batch persist notice:", dbErr.message);
     }
-
-    // Auto-provision seller in sellers registry & portfolios if it's a new merchant
-    try {
-      const db = await getDb();
-      const existingSeller = await db.collection("sellers").findOne({
-        $or: [{ slug: sellerSlug }, { slug: cleanSellerSlug(sellerSlug) }]
-      });
-      if (!existingSeller && sellerSlug !== "anvreeality" && sellerSlug !== "products") {
-        const cleanName = defaultBrand || sellerSlug.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-        await db.collection("sellers").updateOne(
-          { slug: sellerSlug },
-          {
-            $set: {
-              storeName: cleanName,
-              slug: sellerSlug,
-              businessType: firstItem?.category || "Verified Merchant",
-              isActive: true,
-              email: `contact@${sellerSlug.replace(/_/g, "")}.com`,
-              updatedAt: new Date()
-            },
-            $setOnInsert: { createdAt: new Date() }
-          },
-          { upsert: true }
-        );
-        await db.collection("portfolios").updateOne(
-          { slug: sellerSlug },
-          {
-            $set: {
-              slug: sellerSlug,
-              companyName: cleanName,
-              tagline: `Verified ${firstItem?.category || "Merchant"} on TrueDeal`,
-              businessType: firstItem?.category || "Verified Merchant",
-              isPublished: true,
-              updatedAt: new Date()
-            },
-            $setOnInsert: { createdAt: new Date() }
-          },
-          { upsert: true }
-        );
-      }
-    } catch {}
 
     revalidatePath("/dashboard/catalog");
     revalidatePath("/dashboard");
